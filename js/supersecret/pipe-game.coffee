@@ -17,9 +17,9 @@ class PipeGame
     @camera = opt_camera || @initCamera(width, height)
 
     @size =
-      x: 10
-      y: 10
-      z: 10
+      x: 25
+      y: 25
+      z: 25
     @cellSize = 20
     @grid = (((null for z in [1..@size.z]) for y in [1..@size.y]) for x in [1..@size.x])
     @pipes = []
@@ -41,8 +41,10 @@ class PipeGame
     prevData = @grid[position.x][position.y][position.z]
     prevFrom = null
     prevTo = null
+    objects = []
     if prevData?
       [prevFrom, prevTo] = prevData.direction
+      objects = prevData.objects
 
     [from, to] = direction
     from = prevFrom if from is undefined
@@ -56,7 +58,7 @@ class PipeGame
     cell = @grid[position.x][position.y][position.z]
 
     cell.direction = [from, to]
-    cell.objects = []
+    cell.objects = objects
 
   createPipeGeometry: ->
     getRealPosition = ((x, y, z) ->
@@ -85,7 +87,7 @@ class PipeGame
         h /= 2
       r = @cellSize * .2
       geometry = new THREE.CylinderGeometry(r, r, h, 8, 8, false)
-      material = new THREE.MeshPhongMaterial({color: 0xff0000, emissive: 0x400000})
+      material = new THREE.MeshPhongMaterial({color: 0xff0000, emissive: 0x400000, specular: 0xff9090})
       #material = new THREE.LineBasicMaterial({color: 0xff0000})
       mesh = new THREE.Mesh(geometry, material)
       pos = getRealPosition(x, y, z)
@@ -206,7 +208,8 @@ class PipeGame
   initLights: ->
     @lights = []
     addLight = ((x, y, z) ->
-      light = new THREE.PointLight(0xFFFFFF, 2, 200)
+      light = new THREE.PointLight(
+        random.choice([0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF]), 2, 2000)
       light.position.x = x
       light.position.y = y
       light.position.z = z
@@ -276,6 +279,8 @@ class PipeGame
 
   update: (delta) ->
     if not @updatedPipeGeometry or new Date().getTime() - @updatedPipeGeometry > 100
+      if Math.random() < .1
+        @pipes.push(@createPipe())
       @createPipeGeometry.bind(this)()
       @updatedPipeGeometry = new Date().getTime()
     @person.update(delta)
