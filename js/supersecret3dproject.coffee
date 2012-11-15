@@ -51,9 +51,8 @@ window.init = (exposeDebug) ->
   HEIGHT = window.innerHeight
   console.log(WIDTH, HEIGHT)
 
-
-
   game = new Game($container, WIDTH, HEIGHT)
+  console.log("Game created! Starting!")
   game.start()
 
   #person = new FirstPerson(camera)
