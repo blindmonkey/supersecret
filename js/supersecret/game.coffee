@@ -49,8 +49,8 @@ class Game
     })
     DEBUG.expose('material', sphereMaterial)
     geometry = new THREE.Geometry();
-    width = 21
-    length = 21
+    width = 201
+    length = 201
     getVertexIndex = (x, z) -> (z - 1) + (x - 1) * width
     count = 0
     noise = new SimplexNoise()
@@ -59,8 +59,8 @@ class Game
       for zz in [1..length]
         x = (xx - 1) - Math.floor(width / 2)
         z = (zz - 1) - Math.floor(length / 2)
-        #x *= 5
-        #z *= 5
+        x *= 5
+        z *= 5
 
         y = 0
         #y = noise1.noise2D(x, z)
@@ -85,6 +85,22 @@ class Game
     #mesh.position.z = 0
     @scene.add(mesh)
 
+    mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(10, 16, 16),
+      new THREE.MeshPhongMaterial({color: 0xcc0000}))
+    mesh.position.x = 0
+    mesh.position.z = 0
+    mesh.position.y = 50
+    @scene.add(mesh)
+
+    @lightMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(10, 16, 16),
+      new THREE.MeshPhongMaterial({color: 0xcccccc}))
+    @lightMesh.position.x = 0
+    @lightMesh.position.z = 0
+    @lightMesh.position.y = 50
+    @scene.add(@lightMesh)
+
   initLights: ->
     pointLight = new THREE.PointLight(0xFFFFFF, 1, 20)
     DEBUG.expose('pointLight', pointLight)
@@ -93,6 +109,19 @@ class Game
     pointLight.position.y = 1000
     pointLight.position.z = 0
     pointLight.distance = 2000
+
+    lightMesh = @lightMesh
+    rotation = 0
+    mover = ->
+      if rotation > Math.PI * 2
+        rotation -= Math.PI * 2
+      pointLight.position.x = Math.cos(rotation) * 750
+      pointLight.position.z = Math.sin(rotation) * 750
+      lightMesh.position.x = Math.cos(rotation) * 200
+      lightMesh.position.z = Math.sin(rotation) * 200
+      rotation += .01
+      setTimeout(mover, 1000 / 60)
+    mover()
 
     @scene.add(pointLight)
 
