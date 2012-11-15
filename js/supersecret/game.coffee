@@ -1,4 +1,3 @@
-
 Renderer = p.require('Renderer')
 FirstPerson = p.require('FirstPerson')
 
@@ -24,6 +23,9 @@ class Game
     @person.rotation = 3.288
     @person.pitch = .5986
     @person.updateCamera()
+    @handle = null
+
+    DEBUG.expose('terrain-game', this)
 
   initCamera: (width, height) ->
     VIEW_ANGLE = 45
@@ -112,21 +114,28 @@ class Game
 
     lightMesh = @lightMesh
     rotation = 0
+
+    game = this
     mover = ->
       if rotation > Math.PI * 2
         rotation -= Math.PI * 2
-      pointLight.position.x = Math.cos(rotation) * 750
-      pointLight.position.z = Math.sin(rotation) * 750
+      pointLight.position.x = Math.cos(rotation) * 500
+      pointLight.position.z = Math.sin(rotation) * 500
       lightMesh.position.x = Math.cos(rotation) * 200
       lightMesh.position.z = Math.sin(rotation) * 200
       rotation += .01
-      setTimeout(mover, 1000 / 60)
+      game.lightTimeout = setTimeout(mover, 1000 / 60)
     mover()
 
     @scene.add(pointLight)
 
   start: ->
-    @renderer.start @render.bind(this)
+    if @handle == null
+      @handle = @renderer.start(@render.bind(this))
+
+  stop: ->
+    clearTimeout(@lightTimeout)
+    @handle.pause()
 
   render: (delta) ->
     @person.update(delta)

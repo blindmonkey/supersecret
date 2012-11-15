@@ -1,45 +1,5 @@
-
-###
-window.doRender = (tick) ->
-  stopped = false
-
-  frameHistory = []
-  average = (l) ->
-    s = 0
-    for i in l
-      s += i
-    return s / l.length
-  maybeUpdate = (->
-      lastUpdated = new Date().getTime() - 5000
-      return ->
-        if new Date().getTime() - lastUpdated > 5000
-          console.log('Render loop going well. ' + 1000 / average(frameHistory) + ' frames per second')
-          lastUpdated = new Date().getTime())()
-
-  lastTime = new Date().getTime()
-  f = ->
-    now = new Date().getTime()
-    tick(now - lastTime)
-    afterTickTime = new Date().getTime()
-    frameHistory.push(afterTickTime - now)
-    maybeUpdate()
-    lastTime = now
-    if not stopped
-      requestAnimationFrame(f)
-  f()
-  return {
-    pause: ->
-      stopped = true
-    unpause: ->
-      stopped = false
-      lastTime = new Date().getTime()
-      f()
-  }
-
-
-###
-
 Game = p.require('Game')
+PipeGame = p.require('PipeGame')
 FirstPerson = p.require('FirstPerson')
 
 
@@ -51,7 +11,7 @@ window.init = (exposeDebug) ->
   HEIGHT = window.innerHeight
   console.log(WIDTH, HEIGHT)
 
-  game = new Game($container, WIDTH, HEIGHT)
+  game = new PipeGame($container, WIDTH, HEIGHT)
   console.log("Game created! Starting!")
   game.start()
 
