@@ -39,7 +39,6 @@ class PipeGame
 
   setPipe: (position, direction) ->
     prevData = @grid[position.x][position.y][position.z]
-    console.log(prevData, direction)
     prevFrom = null
     prevTo = null
     if prevData?
@@ -106,41 +105,38 @@ class PipeGame
       pipe.objects = []
 
       if from == null and to == null
-        console.log('Adding sphere')
         pipe.objects.push(createSphere(x, y, z))
+      else if from and to and from[1] == to[1]
+        cyl = createCylinder(x, y, z)
+        r = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
+        if r
+          cyl.rotation[r] = Math.PI / 2
+        pipe.objects.push(cyl)
       else
-        console.log(from, to)
-        if from and to and from[1] == to[1]
-          cyl = createCylinder(x, y, z)
-          r = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
-          if r
-            cyl.rotation[r] = Math.PI / 2
-          pipe.objects.push(cyl)
-        else
-          sphere = createSphere(x, y, z)
+        sphere = createSphere(x, y, z)
 
-          if from
-            cyl1 = createCylinder(x, y, z, true)
-            fromMultiplier = if from[0] == '-' then -1 else 1
-            cyl1.position[from[1]] += @cellSize / 4 * fromMultiplier
-            rFrom = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
-            if rFrom
-              cyl1.rotation[rFrom] = Math.PI / 2
-            pipe.objects.push(cyl1)
+        if from
+          cyl1 = createCylinder(x, y, z, true)
+          fromMultiplier = if from[0] == '-' then -1 else 1
+          cyl1.position[from[1]] += @cellSize / 4 * fromMultiplier
+          rFrom = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
+          if rFrom
+            cyl1.rotation[rFrom] = Math.PI / 2
+          pipe.objects.push(cyl1)
 
-          if to
-            cyl2 = createCylinder(x, y, z, true)
+        if to
+          cyl2 = createCylinder(x, y, z, true)
 
-            toMultiplier = if to[0] == '-' then -1 else 1
-            cyl2.position[to[1]] += @cellSize / 4 * toMultiplier
+          toMultiplier = if to[0] == '-' then -1 else 1
+          cyl2.position[to[1]] += @cellSize / 4 * toMultiplier
 
-            rTo = if to[1] == 'x' then 'z' else if to[1] == 'z' then 'x' else null
+          rTo = if to[1] == 'x' then 'z' else if to[1] == 'z' then 'x' else null
 
-            if rTo
-              cyl2.rotation[rTo] = Math.PI / 2
-            pipe.objects.push(cyl2)
+          if rTo
+            cyl2.rotation[rTo] = Math.PI / 2
+          pipe.objects.push(cyl2)
 
-          pipe.objects.push(sphere)
+        pipe.objects.push(sphere)
 
       for obj in pipe.objects
         @scene.add(obj)
