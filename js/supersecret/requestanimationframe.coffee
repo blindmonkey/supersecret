@@ -1,4 +1,4 @@
-provide('requestAnimationFrame', (->
+p.provide('requestAnimationFrame', (->
     return (window.mozRequestAnimationFrame or \
       window.msRequestAnimationFrame or \
       window.webkitRequestAnimationFrame or \

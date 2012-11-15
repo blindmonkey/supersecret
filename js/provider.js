@@ -4,11 +4,13 @@ var repo = {};
 window.p = {}
 
 window.p.provide = function(name, object) {
+  console.log('Providing ' + name);
   repo[name] = object;
   object.init && object.init();
 };
 
 window.p.require = function(name) {
+  console.log('Requiring ' + name);
   return repo[name];
 };
 
