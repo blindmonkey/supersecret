@@ -47,8 +47,8 @@ window.init = (exposeDebug) ->
   $container = $('#container')
   #WIDTH = screen.availWidth#800
   #HEIGHT = screen.availHeight
-  WIDTH = $(window).width()
-  HEIGHT = $(window).height()
+  WIDTH = window.innerWidth
+  HEIGHT = window.innerHeight
   console.log(WIDTH, HEIGHT)
 
 

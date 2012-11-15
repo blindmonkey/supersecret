@@ -7,6 +7,13 @@ class Game
     @renderer = new Renderer(container, width, height)
     @scene = new THREE.Scene();
     @camera = @initCamera(width, height)
+
+    window.addEventListener('resize', (->
+      @renderer.resize(window.innerWidth, window.innerHeight)
+      @camera.aspect = window.innerWidth / window.innerHeight
+      @camera.updateProjectionMatrix()
+    ).bind(this), false);
+
     @initGeometry()
     @initLights()
     @person = new FirstPerson(container, @camera)

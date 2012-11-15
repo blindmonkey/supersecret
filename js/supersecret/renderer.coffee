@@ -18,6 +18,9 @@ class Renderer
     @renderer.setSize(width, height)
     $(container).append(@renderer.domElement)
 
+  resize: (width, height) ->
+    @renderer.setSize(width, height)
+
   start: (tick) ->
     renderer = this
     @stopped = false
