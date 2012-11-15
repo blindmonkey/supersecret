@@ -14,6 +14,7 @@ class FirstPerson
       RIGHT: [39, 68]
       DOWN: [40, 83]
       RISE: [69]
+      LOWER: [81]
     }
     @downKeys = {}
 
@@ -22,7 +23,6 @@ class FirstPerson
     @initialized = true
     dragging = false
     lastPos = null
-    @camera.position.y = 1
     person = this
     @container.mousedown (e) ->
       if e.button == 0
@@ -39,8 +39,8 @@ class FirstPerson
         [lx, ly] = lastPos
         [x, y] = [e.clientX, e.clientY]
 
-        person.rotateY((x - lx) / -10)
-        person.rotatePitch((y - ly) / -10)
+        person.rotateY((x - lx) / 10)
+        person.rotatePitch((y - ly) / 10)
 
         lastPos = [x, y]
 
@@ -58,14 +58,16 @@ class FirstPerson
         if @downKeys[key]
           if keyset == 'RISE'
             @camera.position.y += delta
+          if keyset == 'LOWER'
+            @camera.position.y -= delta
           else if keyset == 'UP'
-            @walkForward()
+            @walkForward(delta)
           else if keyset == 'DOWN'
-            @walkBackward()
+            @walkBackward(delta)
           else if keyset == 'LEFT'
-            @strafeLeft()
+            @strafeLeft(delta)
           else if keyset == 'RIGHT'
-            @strafeRight()
+            @strafeRight(delta)
 
   rotateY: (degrees) ->
     radians = degrees * Math.PI / 180
@@ -89,6 +91,7 @@ class FirstPerson
       @pitch += Math.PI * 2
     while @pitch > Math.PI * 2
       @pitch -= Math.PI * 2
+
     @updateCamera()
 
   walkForward: (speed) ->

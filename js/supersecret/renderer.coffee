@@ -37,8 +37,7 @@ class Renderer
     f = ->
       now = new Date().getTime()
       tick(now - lastTime)
-      afterTickTime = new Date().getTime()
-      frameHistory.push(afterTickTime - now)
+      frameHistory.push(now - lastTime)
       maybeUpdate()
       lastTime = now
       if not renderer.stopped
