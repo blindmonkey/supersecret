@@ -1,5 +1,6 @@
 Game = p.require('Game')
 PipeGame = p.require('PipeGame')
+VoxelGame = p.require('VoxelGame')
 FirstPerson = p.require('FirstPerson')
 
 

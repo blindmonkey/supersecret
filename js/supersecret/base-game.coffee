@@ -30,7 +30,7 @@ class BaseGame
     return camera
 
   start: ->
-    if @handle == null
+    if not @handle
       @handle = @renderer.start(@render.bind(this))
 
   stop: ->
