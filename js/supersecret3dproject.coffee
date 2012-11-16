@@ -1,8 +1,23 @@
 Game = p.require('Game')
 PipeGame = p.require('PipeGame')
 VoxelGame = p.require('VoxelGame')
+WorldGame = p.require('WorldGame')
 FirstPerson = p.require('FirstPerson')
 
+getQueryParams = ->
+  query = window.location.href.split('?').splice(1).join('?')
+  components = query.split('&')
+  params = {}
+  for component in components
+    s = component.split('=')
+    continue if s.length == 0
+    if s.length == 1
+      params[s] = true
+    else
+      key = s[0]
+      v = s.splice(1).join('=')
+      params[s] = v
+  return params
 
 window.init = (exposeDebug) ->
   $container = $('#container')
@@ -12,7 +27,17 @@ window.init = (exposeDebug) ->
   HEIGHT = window.innerHeight
   console.log(WIDTH, HEIGHT)
 
-  game = new VoxelGame($container, WIDTH, HEIGHT)
+  games =
+    voxels: VoxelGame
+    world: WorldGame
+    test: Game
+    pipes: PipeGame
+
+  params = getQueryParams()
+
+  GameClass = games[params.game or 'voxels']
+
+  game = new GameClass($container, WIDTH, HEIGHT)
   console.log("Game created! Starting!")
   game.start()
 

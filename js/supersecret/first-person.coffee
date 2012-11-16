@@ -1,5 +1,6 @@
 class FirstPerson
-  constructor: (container, camera) ->
+  constructor: (container, camera, horizontalAxes) ->
+    @horizontalAxes = ['x', 'z']
     @container = $(container)
     @camera = camera
     @rotation = 0
@@ -57,17 +58,17 @@ class FirstPerson
       for key in @keys[keyset]
         if @downKeys[key]
           if keyset == 'RISE'
-            @camera.position.y += delta
+            @camera.position.y += delta / 10
           if keyset == 'LOWER'
-            @camera.position.y -= delta
+            @camera.position.y -= delta / 10
           else if keyset == 'UP'
-            @walkForward(delta)
+            @walkForward(delta / 10)
           else if keyset == 'DOWN'
-            @walkBackward(delta)
+            @walkBackward(delta / 10)
           else if keyset == 'LEFT'
-            @strafeLeft(delta)
+            @strafeLeft(delta / 10)
           else if keyset == 'RIGHT'
-            @strafeRight(delta)
+            @strafeRight(delta / 10)
 
   rotateY: (degrees) ->
     radians = degrees * Math.PI / 180
@@ -79,10 +80,17 @@ class FirstPerson
     @updateCamera()
 
   updateCamera: ->
-    targetX = @camera.position.x + Math.cos(@rotation)
-    targetY = @camera.position.y - Math.sin(@pitch)
-    targetZ = @camera.position.z + Math.sin(@rotation)
-    @camera.lookAt(new THREE.Vector3(targetX, targetY, targetZ))
+    v = new THREE.Vector3(0, 0, 0)
+
+    [hAxis1, hAxis2] = @horizontalAxes
+    # v.x = @camera.position.x + Math.cos(@rotation)
+    # v.y = @camera.position.y - Math.sin(@pitch)
+    # v.z = @camera.position.z + Math.sin(@rotation)
+    v[hAxis1] = @camera.position[hAxis1] + Math.cos(@rotation)
+    v.y = @camera.position.y - Math.sin(@pitch)
+    v[hAxis2] = @camera.position[hAxis2] + Math.sin(@rotation)
+
+    @camera.lookAt(v)
 
   rotatePitch: (degrees) ->
     radians = degrees * Math.PI / 180
@@ -94,24 +102,22 @@ class FirstPerson
 
     @updateCamera()
 
-  walkForward: (speed) ->
+  modifyPosition: (rotation, speed) ->
     speed = speed or 10
-    @camera.position.x = @camera.position.x + Math.cos(@rotation) * speed
-    @camera.position.z = @camera.position.z + Math.sin(@rotation) * speed
+    [hAxis1, hAxis2] = @horizontalAxes
+    @camera.position[hAxis1] = @camera.position[hAxis1] + Math.cos(rotation) * speed
+    @camera.position[hAxis2] = @camera.position[hAxis2] + Math.sin(rotation) * speed
+
+  walkForward: (speed) ->
+    return @modifyPosition(@rotation, speed)
 
   walkBackward: (speed) ->
-    speed = speed or 10
-    @camera.position.x = @camera.position.x + Math.cos(@rotation + Math.PI) * speed
-    @camera.position.z = @camera.position.z + Math.sin(@rotation + Math.PI) * speed
+    return @modifyPosition(@rotation + Math.PI, speed)
 
   strafeLeft: (speed) ->
-    speed = speed or 10
-    @camera.position.x = @camera.position.x + Math.cos(@rotation - Math.PI / 2) * speed
-    @camera.position.z = @camera.position.z + Math.sin(@rotation - Math.PI / 2) * speed
+    return @modifyPosition(@rotation - Math.PI / 2, speed)
 
   strafeRight: (speed) ->
-    speed = speed or 10
-    @camera.position.x = @camera.position.x + Math.cos(@rotation + Math.PI / 2) * speed
-    @camera.position.z = @camera.position.z + Math.sin(@rotation + Math.PI / 2) * speed
+    return @modifyPosition(@rotation + Math.PI / 2, speed)
 
 p.provide('FirstPerson', FirstPerson)

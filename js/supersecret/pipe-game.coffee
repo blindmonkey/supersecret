@@ -226,7 +226,7 @@ class PipeGame
       @lights.push light
       @scene.add light
     ).bind(this)
-    
+
     addLight(@camera.position.x, @camera.position.y, @camera.position.z)
 
     #addLight(-(@size.x / 2 + 2) * @cellSize, 0, 0)
