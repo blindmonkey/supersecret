@@ -11,7 +11,7 @@ window.init = (exposeDebug) ->
   HEIGHT = window.innerHeight
   console.log(WIDTH, HEIGHT)
 
-  game = new PipeGame($container, WIDTH, HEIGHT)
+  game = new VoxelGame($container, WIDTH, HEIGHT)
   console.log("Game created! Starting!")
   game.start()
 
