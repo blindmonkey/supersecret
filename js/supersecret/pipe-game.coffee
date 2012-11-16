@@ -23,9 +23,9 @@ class PipeGame
     ).bind(this))
 
     @size =
-      x: 25
-      y: 25
-      z: 25
+      x: 15
+      y: 15
+      z: 15
     @cellSize = 20
     @grid = (((null for z in [1..@size.z]) for y in [1..@size.y]) for x in [1..@size.x])
     @pipes = []
@@ -43,7 +43,7 @@ class PipeGame
     @person.updateCamera()
     DEBUG.expose('person', @person)
 
-  setPipe: (position, direction) ->
+  setPipe: (position, direction, color) ->
     prevData = @grid[position.x][position.y][position.z]
     prevFrom = null
     prevTo = null
@@ -51,6 +51,7 @@ class PipeGame
     if prevData?
       [prevFrom, prevTo] = prevData.direction
       objects = prevData.objects
+      color = prevData.color
 
     [from, to] = direction
     from = prevFrom if from is undefined
@@ -65,6 +66,7 @@ class PipeGame
 
     cell.direction = [from, to]
     cell.objects = objects
+    cell.color = color
 
   createPipeGeometry: ->
     getRealPosition = ((x, y, z) ->
@@ -75,9 +77,9 @@ class PipeGame
       return p
     ).bind(this)
 
-    createSphere = ((x, y, z) ->
+    createSphere = ((x, y, z, color) ->
       geometry = new THREE.SphereGeometry(@cellSize * .2, 8, 8)
-      material = new THREE.MeshPhongMaterial({color: 0xff0000, emissive: 0x400000})
+      material = new THREE.MeshPhongMaterial({color: color, emissive: 0x400000})
       #material = new THREE.LineBasicMaterial({color: 0xff0000})
       mesh = new THREE.Mesh(geometry, material)
       pos = getRealPosition(x, y, z)
@@ -87,13 +89,13 @@ class PipeGame
       return mesh
     ).bind(this)
 
-    createCylinder = ((x, y, z, optHalfSize) ->
+    createCylinder = ((x, y, z, color, optHalfSize) ->
       h = @cellSize
       if optHalfSize
         h /= 2
       r = @cellSize * .2
       geometry = new THREE.CylinderGeometry(r, r, h, 8, 8, false)
-      material = new THREE.MeshPhongMaterial({color: 0xff0000, emissive: 0x400000, specular: 0xff9090})
+      material = new THREE.MeshPhongMaterial({color: color, emissive: 0x400000, specular: 0xff9090})
       #material = new THREE.LineBasicMaterial({color: 0xff0000})
       mesh = new THREE.Mesh(geometry, material)
       pos = getRealPosition(x, y, z)
@@ -113,18 +115,18 @@ class PipeGame
       pipe.objects = []
 
       if from == null and to == null
-        pipe.objects.push(createSphere(x, y, z))
+        pipe.objects.push(createSphere(x, y, z, pipe.color))
       else if from and to and from[1] == to[1]
-        cyl = createCylinder(x, y, z)
+        cyl = createCylinder(x, y, z, pipe.color)
         r = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
         if r
           cyl.rotation[r] = Math.PI / 2
         pipe.objects.push(cyl)
       else
-        sphere = createSphere(x, y, z)
+        sphere = createSphere(x, y, z, pipe.color)
 
         if from
-          cyl1 = createCylinder(x, y, z, true)
+          cyl1 = createCylinder(x, y, z, pipe.color, true)
           fromMultiplier = if from[0] == '-' then -1 else 1
           cyl1.position[from[1]] += @cellSize / 4 * fromMultiplier
           rFrom = if from[1] == 'x' then 'z' else if from[1] == 'z' then 'x' else null
@@ -133,7 +135,7 @@ class PipeGame
           pipe.objects.push(cyl1)
 
         if to
-          cyl2 = createCylinder(x, y, z, true)
+          cyl2 = createCylinder(x, y, z, pipe.color, true)
 
           toMultiplier = if to[0] == '-' then -1 else 1
           cyl2.position[to[1]] += @cellSize / 4 * toMultiplier
@@ -179,7 +181,6 @@ class PipeGame
         0 <= position.z < @size.z and not @cellExists(position))
     ).bind(this)
 
-    #debugger
     nextPipeState = []
     pipeIndex = 0
     for pipe in @pipes
@@ -199,10 +200,11 @@ class PipeGame
           possibilities.splice(p, 1)
       if not nextPosition?
         continue
-      @setPipe(pipe, [undefined, direction])
-      @setPipe(nextPosition, [reverseDirection(direction), null])
+      @setPipe(pipe, [undefined, direction], pipe.color)
+      @setPipe(nextPosition, [reverseDirection(direction), null], pipe.color)
       drawPipe(pipe.x, pipe.y, pipe.z)
       drawPipe(nextPosition.x, nextPosition.y, nextPosition.z)
+      nextPosition.color = pipe.color
       nextPipeState.push(nextPosition)
       pipeIndex++
       #pipe[axis] += modify(1)
@@ -214,6 +216,7 @@ class PipeGame
   initLights: ->
     @lights = []
     addLight = ((x, y, z) ->
+      console.log('Adding light')
       light = new THREE.PointLight(
         random.choice([0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF]), 2, 2000)
       light.position.x = x
@@ -223,13 +226,15 @@ class PipeGame
       @lights.push light
       @scene.add light
     ).bind(this)
+    
+    addLight(@camera.position.x, @camera.position.y, @camera.position.z)
 
-    addLight(-(@size.x / 2 + 2) * @cellSize, 0, 0)
-    addLight( (@size.x / 2 + 2) * @cellSize, 0, 0)
-    addLight(0, -(@size.y / 2 + 2) * @cellSize, 0)
-    addLight(0,  (@size.y / 2 + 2) * @cellSize, 0)
-    addLight(0, 0, -(@size.z / 2 + 2) * @cellSize)
-    addLight(0, 0,  (@size.z / 2 + 2) * @cellSize)
+    #addLight(-(@size.x / 2 + 2) * @cellSize, 0, 0)
+    #addLight( (@size.x / 2 + 2) * @cellSize, 0, 0)
+    #addLight(0, -(@size.y / 2 + 2) * @cellSize, 0)
+    #addLight(0,  (@size.y / 2 + 2) * @cellSize, 0)
+    #addLight(0, 0, -(@size.z / 2 + 2) * @cellSize)
+    #addLight(0, 0,  (@size.z / 2 + 2) * @cellSize)
 
     DEBUG.expose('lights', @lights)
 
@@ -252,6 +257,14 @@ class PipeGame
   createPipe: ->
     dim = null
     tries = 10
+    color = random.choice([
+      0x0000FF,
+      0x00FF00,
+      0x00FFFF,
+      0xFF0000,
+      0xFF00FF,
+      0xFFFF00
+    ])
     while (dim == null || @cellExists(dim))
       return null if tries <= 0
       dim =
@@ -259,7 +272,8 @@ class PipeGame
         y: Math.floor(Math.random() * @size.y)
         z: Math.floor(Math.random() * @size.z)
       tries--
-    @setPipe(dim, [null, null])
+    dim.color = color
+    @setPipe(dim, [null, null], color)
     return dim
 
   initCamera: (width, height) ->
@@ -285,7 +299,7 @@ class PipeGame
 
   update: (delta) ->
     if not @updatedPipeGeometry or new Date().getTime() - @updatedPipeGeometry > 100
-      if Math.random() < .1
+      if Math.random() < .1 and @pipes.length < 3
         @pipes.push(@createPipe())
       @createPipeGeometry.bind(this)()
       @updatedPipeGeometry = new Date().getTime()
