@@ -27,6 +27,11 @@ class Game
 
     DEBUG.expose('terrain-game', this)
 
+    $(container).keydown(((e) ->
+      if e.keyCode == 27
+        @stop()
+    ).bind(this))
+
   initCamera: (width, height) ->
     VIEW_ANGLE = 45
     ASPECT = width / height

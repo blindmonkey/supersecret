@@ -16,6 +16,12 @@ class PipeGame
     @scene = opt_scene || new THREE.Scene()
     @camera = opt_camera || @initCamera(width, height)
 
+    $(document).keydown(((e) ->
+      console.log('keydown!' + e.keyCode)
+      if e.keyCode == 27
+        @handle.pause()
+    ).bind(this))
+
     @size =
       x: 25
       y: 25
