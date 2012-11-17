@@ -53,6 +53,8 @@ class WorldGame extends BaseGame
       polygons.push(p)
     console.log(min, max, polygons)
 
+    uncharted = []
+
     radius = 10
     latitude = -90 + latitudeStep
     while latitude < 90
@@ -85,9 +87,12 @@ class WorldGame extends BaseGame
             )
           m.position = v1
           @scene.add(m)
+        else
+          uncharted.push [longitude, latitude]
 
         longitude += longitudeStep
       latitude += latitudeStep
+    console.log(uncharted)
 
     #geometry.computeFaceNormals()
     console.log('done')
