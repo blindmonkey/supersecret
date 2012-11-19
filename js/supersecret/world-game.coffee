@@ -63,6 +63,13 @@ class WorldGame extends BaseGame
     min = 0
     max = 0
 
+    smartMod = (n, m) ->
+      while n < 0
+        n += m
+      while n >= m
+        n -= m
+      return n
+
     #debugger
     for feature in maps.d3world.features
       if feature.type != 'Feature'
@@ -80,7 +87,7 @@ class WorldGame extends BaseGame
             min = point[0]
           if point[0] > max
             max = point[0]
-          p.push({x: 360-point[0]+180, y: point[1]})
+          p.push({x: smartMod(360-point[0]+180, 360), y: point[1]})
         polygons.push(p)
         names.push(feature.properties.name)
     console.log(min, max, polygons)
