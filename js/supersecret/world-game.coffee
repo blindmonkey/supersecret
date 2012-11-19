@@ -9,25 +9,56 @@ class WorldGame extends BaseGame
     DEBUG.expose('chunk', @chunk)
     DEBUG.expose('scene', @scene)
 
-    @camera.position.x = 0
-    @camera.position.y = 1
+    @camera.position.x = -30
+    @camera.position.y = 0
     @camera.position.z = 0
 
-    @person = new FirstPerson(container, @camera)
-    @person.updateCamera()
+    #@person = new FirstPerson(container, @camera)
+    #@person.updateCamera()
+    @rotation = 0
+    @pitch = 0
 
+    @placeCamera()
 
+    lastMouse = null
+    dragging = false
+    $(container).mousedown(((e) ->
+      dragging = true
+      lastMouse = [e.clientX, e.clientY]
+      ).bind(this))
+    $(container).mouseup(((e) ->
+      dragging = false
+      lastMouse = null
+      ).bind(this))
+    $(container).mousemove(((e) ->
+      if dragging
+        [lx, ly] = lastMouse
+        @rotation += e.clientX - lx
+        @pitch += e.clientY - ly
+        lastMouse = [e.clientX, e.clientY]
+      ).bind(this))
 
+    $(document).keydown(((e) ->
+      if e.keyCode == 74
+        @rotateGeometry(-.1)
+      else if e.keyCode == 76
+        @rotateGeometry(.1)
+      ).bind(this))
+
+  placeCamera: ->
+    @camera.position.x = Math.cos(@rotation) * 30
+    @camera.position.z = Math.sin(@rotation) * 30
+    @camera.lookAt(new THREE.Vector3(0, 0, 0))
+
+  rotateGeometry: (amount) ->
+    for mesh in @globeGeometry
+      mesh.rotation.y += amount
 
   initGeometry: ->
-    PIECES = 256
-
-    longitudeStep = 360 / PIECES
-    latitudeStep = 180 / (PIECES / 2)
-
     material = new THREE.LineBasicMaterial({color: 0xff0000})
 
     polygons = []
+    names = []
 
     min = 0
     max = 0
@@ -38,73 +69,153 @@ class WorldGame extends BaseGame
         throw 'Non-feature found in features'
 
       polygon = feature.geometry.coordinates
-      if feature.geometry.type == 'MultiPolygon'
-        polygon = polygon[0]
-      if polygon.length == 1
-        polygon = polygon[0]
+      if feature.geometry.type == 'Polygon'
+        console.log feature.properties.name
+        polygon = [polygon]
 
-      p = []
-      for point in polygon
-        if point[0] < min
-          min = point[0]
-        if point[0] > max
-          max = point[0]
-        p.push({x: point[0], y: point[1]})
-      polygons.push(p)
+      for points in polygon
+        p = []
+        for point in points[0]
+          if point[0] < min
+            min = point[0]
+          if point[0] > max
+            max = point[0]
+          p.push({x: point[0]+180, y: point[1]})
+        polygons.push(p)
+        names.push(feature.properties.name)
     console.log(min, max, polygons)
 
     uncharted = []
+    mapped = {}
+    l = (n for n in names)
+    l.sort()
+    console.log(l)
 
-    radius = 10
-    latitude = -90 + latitudeStep
-    while latitude < 90
+    @globeGeometry = []
+
+    projectLatLong = (latitude, longitude, size) ->
       y = Math.sin(latitude / 180 * Math.PI)
       r = Math.cos(latitude / 180 * Math.PI)
+      x = Math.cos(longitude / 180 * Math.PI) * r
+      z = Math.sin(longitude / 180 * Math.PI) * r
+      return {x:x * size, y:y * size, z:z * size}
 
+    outlineMaterial = new THREE.LineBasicMaterial({color: 0x00ff00})
+    radius = 10
+    for polygon in polygons
+      geometry = new THREE.Geometry()
+      # avgx = 0
+      # avgy = 0
+      for point in polygon
+        # avgx += point.x
+        # avgy += point.y
+        projected = projectLatLong(point.y, point.x, 1)
+        geometry.vertices.push(new THREE.Vector3(projected.x * radius, projected.y * radius, projected.z * radius))
+      # avgx /= polygon.length
+      # avgy /= polygon.length
+      # projectedAvg = projectLatLong(avgx, avgy)
+      m = new THREE.Line(geometry, outlineMaterial)
+      @scene.add m
+      @globeGeometry.push m
+
+    pointSize = .25
+
+    PIECES = 150
+    MAX_HEIGHT = 
+
+    @countryUpdate = {}
+
+    longitudeStep = 360 / PIECES
+    latitudeStep = 180 / (PIECES / 2)
+
+    geometry = new THREE.Geometry()
+    latitude = -90 + latitudeStep
+    while latitude < 90
       longitude = -180
       while longitude < 180
         isInPoly = false
-        for polygon in polygons
-          if isPointInPoly(polygon, {x:-latitude, y:longitude})
+        countryName = null
+        for polygonI of polygons
+          polygon = polygons[polygonI]
+          if isPointInPoly(polygon, {x:longitude+180, y:latitude})
+            name = names[polygonI]
+            if name not of mapped
+              mapped[name] = true
+            countryName = name
             isInPoly = true
             break
+
         if isInPoly
-          x = Math.cos(longitude / 180 * Math.PI) * r
-          z = Math.sin(longitude / 180 * Math.PI) * r
+          if countryName not of @countryUpdate
+            @countryUpdate[countryName] = []
+          outVector = projectLatLong(latitude, longitude+180, 1)
+          pTopLeft = projectLatLong(latitude - pointSize, longitude+180 - pointSize, radius)
+          pTopRight = projectLatLong(latitude + pointSize, longitude+180 - pointSize, radius)
+          pBottomLeft = projectLatLong(latitude - pointSize, longitude+180 + pointSize, radius)
+          pBottomRight = projectLatLong(latitude + pointSize, longitude+180 + pointSize, radius)
+          #p = projectLatLong(latitude, longitude+180)
 
-          if isNaN(x) or isNaN(z) or isNaN(y) or isNaN(r)
-            throw 'shit'
+          oTopLeft = new THREE.Vector3(pTopLeft.x, pTopLeft.y, pTopLeft.z)
+          oTopRight = new THREE.Vector3(pTopRight.x, pTopRight.y, pTopRight.z)
+          oBottomLeft = new THREE.Vector3(pBottomLeft.x, pBottomLeft.y, pBottomLeft.z)
+          oBottomRight = new THREE.Vector3(pBottomRight.x, pBottomRight.y, pBottomRight.z)
+          geometry.vertices.push oTopLeft
+          geometry.vertices.push oTopRight
+          geometry.vertices.push oBottomLeft
+          geometry.vertices.push oBottomRight
 
-          #geometry = new THREE.Geometry()
-          v1 = new THREE.Vector3(x * radius, y * radius, z * radius)
-          v2 = new THREE.Vector3(x * (radius + .1), y * (radius + .1), z * (radius + .1))
-          #geometry.vertices.push(v1)
-          #geometry.vertices.push(v2)
-          #@scene.add(new THREE.Line(geometry, material))
-          m = new THREE.Mesh(
-            new THREE.SphereGeometry(.1, 2, 2),
-            material
-            )
-          m.position = v1
-          @scene.add(m)
-        else
-          uncharted.push [longitude, latitude]
+          pTopLeft = new THREE.Vector3(pTopLeft.x, pTopLeft.y, pTopLeft.z)
+          pTopRight = new THREE.Vector3(pTopRight.x, pTopRight.y, pTopRight.z)
+          pBottomLeft = new THREE.Vector3(pBottomLeft.x, pBottomLeft.y, pBottomLeft.z)
+          pBottomRight = new THREE.Vector3(pBottomRight.x, pBottomRight.y, pBottomRight.z)
+          geometry.vertices.push pTopLeft
+          geometry.vertices.push pTopRight
+          geometry.vertices.push pBottomLeft
+          geometry.vertices.push pBottomRight
+
+          rerenderVector = ((outVector, oTopLeft, oTopRight, oBottomLeft, oBottomRight, pTopLeft, pTopRight, pBottomLeft, pBottomRight, geometry) ->
+            return (value) ->
+              value = value or 10
+              pTopLeft.x = oTopLeft.x + outVector.x * value
+              pTopLeft.y = oTopLeft.y + outVector.y * value
+              pTopLeft.z = oTopLeft.z + outVector.z * value
+              pTopRight.x = oTopRight.x + outVector.x * value
+              pTopRight.y = oTopRight.y + outVector.y * value
+              pTopRight.z = oTopRight.z + outVector.z * value
+              pBottomLeft.x = oBottomLeft.x + outVector.x * value
+              pBottomLeft.y = oBottomLeft.y + outVector.y * value
+              pBottomLeft.z = oBottomLeft.z + outVector.z * value
+              pBottomRight.x = oBottomRight.x + outVector.x * value
+              pBottomRight.y = oBottomRight.y + outVector.y * value
+              pBottomRight.z = oBottomRight.z + outVector.z * value
+              geometry.verticesNeedUpdate = true
+          )(outVector, oTopLeft, oTopRight, oBottomLeft, oBottomRight, pTopLeft, pTopRight, pBottomLeft, pBottomRight, geometry)
+          @countryUpdate[countryName].push(rerenderVector)
+
+          #geometry.faces.push new THREE.Face3(geometry.vertices.length - 4, geometry.vertices.length - 3, geometry.vertices.length - 1)
+
+          geometry.faces.push new THREE.Face3(geometry.vertices.length - 4, geometry.vertices.length - 3, geometry.vertices.length - 1)
+          geometry.faces.push new THREE.Face3(geometry.vertices.length - 4, geometry.vertices.length - 1, geometry.vertices.length - 2)
+
 
         longitude += longitudeStep
       latitude += latitudeStep
+      m = new THREE.Mesh(geometry,
+        new THREE.MeshPhongMaterial({color: 0xff0000}))
+      @scene.add(m)
+      @globeGeometry.push(m)
+    @scene.add new THREE.Mesh(new THREE.SphereGeometry(9.9, 32, 32), new THREE.LineBasicMaterial({color: 0x000000}))
     console.log(uncharted)
+
+    @countryValues = {}
+    for country in @countryUpdate
+      @countryValues[country] = Math.random() * 10
+    for country in @countryUpdate
+      @countryUpdate[country](@countryValues[country])
+
 
     #geometry.computeFaceNormals()
     console.log('done')
-    #material = new THREE.MeshPhongMaterial({color: 0xff0000})
-    #mesh = new THREE.Mesh(geometry, material)
-    #mesh = new THREE.Line(geometry, material)
-    #@scene.add(mesh)
-    ###
-    @scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(2, 16, 16),
-      new THREE.MeshPhongMaterial({color: 0xff0000})))
-    ###
 
   initLights: ->
     @scene.add new THREE.AmbientLight(0x505050)
@@ -116,7 +227,9 @@ class WorldGame extends BaseGame
     @scene.add light
 
   render: (delta) ->
-    @person.update(delta)
+    @rotation += .01
+    @placeCamera()
+    #@person.update(delta)
     @renderer.renderer.render(@scene, @camera)
 
 

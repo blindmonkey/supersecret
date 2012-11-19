@@ -13,6 +13,10 @@ class BaseGame
       @camera.updateProjectionMatrix()
     ).bind(this), false);
 
+    $(document).keydown(((e) ->
+      if e.keyCode == 27
+        @stop()).bind(this))
+
     @initGeometry and @initGeometry()
     @initLights and @initLights()
 
