@@ -9,7 +9,7 @@ class WorldGame extends BaseGame
     DEBUG.expose('chunk', @chunk)
     DEBUG.expose('scene', @scene)
 
-    @camera.position.x = -30
+    @camera.position.x = -50
     @camera.position.y = 0
     @camera.position.z = 0
 
@@ -46,8 +46,8 @@ class WorldGame extends BaseGame
       ).bind(this))
 
   placeCamera: ->
-    @camera.position.x = Math.cos(@rotation) * 30
-    @camera.position.z = Math.sin(@rotation) * 30
+    @camera.position.x = Math.cos(@rotation) * 75
+    @camera.position.z = Math.sin(@rotation) * 75
     @camera.lookAt(new THREE.Vector3(0, 0, 0))
 
   rotateGeometry: (amount) ->
@@ -120,15 +120,22 @@ class WorldGame extends BaseGame
 
     pointSize = .25
 
-    PIECES = 150
-    MAX_HEIGHT = 
+    PIECES = 128
+    #MAX_HEIGHT =
 
     @countryUpdate = {}
 
     longitudeStep = 360 / PIECES
     latitudeStep = 180 / (PIECES / 2)
 
-    geometry = new THREE.Geometry()
+    @countryValues = {}
+    for country in names
+      @countryValues[country] = Math.random() * 10
+    ###
+    for country in @countryUpdate
+      @countryUpdate[country](@countryValues[country])
+    ###
+
     latitude = -90 + latitudeStep
     while latitude < 90
       longitude = -180
@@ -149,6 +156,20 @@ class WorldGame extends BaseGame
           if countryName not of @countryUpdate
             @countryUpdate[countryName] = []
           outVector = projectLatLong(latitude, longitude+180, 1)
+          geometry = new THREE.Geometry()
+          geometry.vertices.push(new THREE.Vector3(
+            outVector.x * radius,
+            outVector.y * radius,
+            outVector.z * radius))
+          v = @countryValues[countryName]
+          geometry.vertices.push(new THREE.Vector3(
+            outVector.x * (radius + v / 10),
+            outVector.y * (radius + v / 10),
+            outVector.z * (radius + v / 10)))
+          m = new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0xff0000}))
+          @scene.add m
+          @globeGeometry.push m
+          ###
           pTopLeft = projectLatLong(latitude - pointSize, longitude+180 - pointSize, radius)
           pTopRight = projectLatLong(latitude + pointSize, longitude+180 - pointSize, radius)
           pBottomLeft = projectLatLong(latitude - pointSize, longitude+180 + pointSize, radius)
@@ -196,22 +217,19 @@ class WorldGame extends BaseGame
 
           geometry.faces.push new THREE.Face3(geometry.vertices.length - 4, geometry.vertices.length - 3, geometry.vertices.length - 1)
           geometry.faces.push new THREE.Face3(geometry.vertices.length - 4, geometry.vertices.length - 1, geometry.vertices.length - 2)
+          ###
 
 
         longitude += longitudeStep
       latitude += latitudeStep
+      ###
       m = new THREE.Mesh(geometry,
         new THREE.MeshPhongMaterial({color: 0xff0000}))
       @scene.add(m)
       @globeGeometry.push(m)
+      ###
     @scene.add new THREE.Mesh(new THREE.SphereGeometry(9.9, 32, 32), new THREE.LineBasicMaterial({color: 0x000000}))
     console.log(uncharted)
-
-    @countryValues = {}
-    for country in @countryUpdate
-      @countryValues[country] = Math.random() * 10
-    for country in @countryUpdate
-      @countryUpdate[country](@countryValues[country])
 
 
     #geometry.computeFaceNormals()
