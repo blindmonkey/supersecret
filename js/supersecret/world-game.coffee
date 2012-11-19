@@ -80,7 +80,7 @@ class WorldGame extends BaseGame
             min = point[0]
           if point[0] > max
             max = point[0]
-          p.push({x: point[0]+180, y: point[1]})
+          p.push({x: 360-point[0]+180, y: point[1]})
         polygons.push(p)
         names.push(feature.properties.name)
     console.log(min, max, polygons)
