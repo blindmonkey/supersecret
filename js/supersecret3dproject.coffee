@@ -3,6 +3,7 @@ PipeGame = p.require('PipeGame')
 VoxelGame = p.require('VoxelGame')
 WorldGame = p.require('WorldGame')
 TerrainGame = p.require('TerrainGame')
+DnaGame = p.require('DnaGame')
 FirstPerson = p.require('FirstPerson')
 
 getQueryParams = ->
@@ -34,6 +35,7 @@ window.init = (exposeDebug) ->
     test: Game
     pipes: PipeGame
     terrain: TerrainGame
+    dna: DnaGame
 
   params = getQueryParams()
 
