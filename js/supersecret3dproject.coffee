@@ -2,6 +2,7 @@ Game = p.require('Game')
 PipeGame = p.require('PipeGame')
 VoxelGame = p.require('VoxelGame')
 WorldGame = p.require('WorldGame')
+TerrainGame = p.require('TerrainGame')
 FirstPerson = p.require('FirstPerson')
 
 getQueryParams = ->
@@ -32,6 +33,7 @@ window.init = (exposeDebug) ->
     world: WorldGame
     test: Game
     pipes: PipeGame
+    terrain: TerrainGame
 
   params = getQueryParams()
 

@@ -182,7 +182,7 @@ class WorldGame extends BaseGame
             (geometry.vertices.length + a) % geometry.vertices.length,
             (geometry.vertices.length + b) % geometry.vertices.length,
             (geometry.vertices.length + c) % geometry.vertices.length))
-      
+
       color = lerpColor(color1, color2, @countryValues[name])
       # avgx = 0
       # avgy = 0
@@ -193,45 +193,25 @@ class WorldGame extends BaseGame
         # avgx += point.x
         # avgy += point.y
 
-        createVectors = ((point, nextPoint) ->
-          projected = projectLatLong(point.y, point.x, 1)
-          nextProjected = projectLatLong(nextPoint.y, nextPoint.x, 1)
-
-          realr1 = radius
-          realr2 = radius + @countryValues[name] + .2
-          r1 = 0
-          r2 = 0
-
-          vectorAtR = (point, r) ->
-            return new THREE.Vector3(point.x * r, point.y * r, point.z * r)
-          v1 = vectorAtR(projected, realr1)
-          v2 = vectorAtR(projected, realr2)
-          v3 = vectorAtR(nextProjected, realr1)
-          v4 = vectorAtR(nextProjected, realr2)
-
-          updateVectors = (newR1, newR2) ->
-            updatedV1 = vectorAtR(projected, newR1)
-            updatedV2 = vectorAtR(projected, newR2)
-            updatedV3 = vectorAtR(nextProjected, newR1)
-            updatedV4 = vectorAtR(nextProjected, newR2)
-            copy = (vFrom, vTo) ->
-              vTo.x = vFrom.x
-              vTo.y = vFrom.y
-              vTo.z = vFrom.z
-            copy(updatedV1, v1)
-            copy(updatedV2, v2)
-            copy(updatedV3, v3)
-            copy(updatedV4, v4)
-            geometry.verticesNeedUpdate = true
-            geometry.computeFaceNormals()
-
-          return [v1, v2, v3, v4, updateVectors]
-        ).bind(this)
+        projected = projectLatLong(point.y, point.x, 1)
+        nextProjected = projectLatLong(nextPoint.y, nextPoint.x, 1)
 
         if name not of @countryUpdates
           @countryUpdates[name] = []
-        [v1, v2, v3, v4, updateVectors] = createVectors(points, nextPoint)
-        @countryUpdates[name].push(updateVectors)
+
+        realr1 = radius
+        realr2 = radius + @countryValues[name] + .2
+        r1 = 0
+        r2 = 0
+
+        vectorAtR = (point, r) ->
+          return new THREE.Vector3(point.x * r, point.y * r, point.z * r)
+        v1 = vectorAtR(projected, realr1)
+        v2 = vectorAtR(projected, realr2)
+        v3 = vectorAtR(nextProjected, realr1)
+        v4 = vectorAtR(nextProjected, realr2)
+
+        #@countryUpdates[name].push(updateVectors)
 
         geometry.vertices.push(v1)
         geometry.vertices.push(v2)
