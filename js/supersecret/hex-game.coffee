@@ -88,7 +88,7 @@ class HexGame extends BaseGame
     geometry.computeFaceNormals()
     materials = [
       new THREE.LineBasicMaterial({color: 0x0000ff}),
-      new THREE.MeshPhongMaterial({color: 0x0000ff, ambient: 0x0000aa})
+      new THREE.MeshPhongMaterial({color: 0x5555ff})
     ]
     materialIndex = 1
     mesh = new THREE.Mesh(geometry, materials[materialIndex])
@@ -100,42 +100,37 @@ class HexGame extends BaseGame
     )
 
   initLights: ->
-    @scene.add new THREE.AmbientLight(0x505050, 1, 50)
+    #@scene.add new THREE.AmbientLight(0x505050, 1, 50)
     light = new THREE.PointLight(0xffffff, 1, 50)
     light.position.x = 0
     light.position.z = 0
-    light.position.y = 10
-    #@scene.add light
+    light.position.y = 20
+    @scene.add light
     DEBUG.expose('light', light)
 
-    @dlightRotation = 0
-    #dlight = new THREE.SpotLight(0xff0000, 50, 500)
-    dlight = new THREE.DirectionalLight(0xff0000, 50)
-    #dlight.lookAt(new THREE.Vector3(@camera.position.x, @camera.position.y, @camera.position.z))
-    @dlight = dlight
-    dlight.shadowCameraVisible = true
-    @scene.add dlight
-    @dlightSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.LineBasicMaterial({color: 0x00ff00}))
-    @scene.add @dlightSphere
-    DEBUG.expose('dlight', dlight)
+    light2 = new THREE.PointLight(0xff0000, 1, 50)
+    light2.position.x = 0
+    light2.position.z = 10
+    light2.position.y = 20
+    @scene.add light2
+    DEBUG.expose('light2', light2)
 
+    @dlightRotation = 0
+    @scene.add @dlight = new THREE.DirectionalLight(0xffffff, 1)
+    DEBUG.expose('dlight', @dlight)
+
+    @scene.add @dlightSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.LineBasicMaterial({color: 0xffff00}))
 
   render: (delta) ->
-    @person.update(delta)
-    @dlight.position.x = @camera.position.x
-    @dlight.position.y = @camera.position.y + 20
-    @dlight.position.z = @camera.position.z
-    @dlight.lookAt(@camera.position)
-    ###
     @dlightRotation += .01
-    @dlightRotation %= 2 * Math.PI
-    @dlight.position.x = Math.cos(@dlightRotation) * 10
-    @dlight.position.z = Math.sin(@dlightRotation) * 10
-    @dlight.position.y = 20
-    @dlightSphere.position = @dlight.position
+    @dlight.position.x = 0
+    @dlight.position.z = Math.cos(@dlightRotation)
+    @dlight.position.y = Math.sin(@dlightRotation)
+    @dlightSphere.position.x = 0
+    @dlightSphere.position.z = Math.cos(@dlightRotation)*40
+    @dlightSphere.position.y = Math.sin(@dlightRotation)*40
 
-    @dlight.lookAt(new THREE.Vector3(0, 0, 0))
-    ###
+    @person.update(delta)
 
     @renderer.renderer.render(@scene, @camera)
 
