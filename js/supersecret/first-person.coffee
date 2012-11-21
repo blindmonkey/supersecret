@@ -89,6 +89,7 @@ class FirstPerson
     v[hAxis1] = @camera.position[hAxis1] + Math.cos(@rotation)
     v.y = @camera.position.y - Math.sin(@pitch)
     v[hAxis2] = @camera.position[hAxis2] + Math.sin(@rotation)
+    #v.normalize()
 
     @camera.lookAt(v)
 

@@ -109,23 +109,34 @@ class HexGame extends BaseGame
     DEBUG.expose('light', light)
 
     @dlightRotation = 0
-    dlight = new THREE.DirectionalLight(0xff0000, 50, 500)
+    #dlight = new THREE.SpotLight(0xff0000, 50, 500)
+    dlight = new THREE.DirectionalLight(0xff0000, 50)
     #dlight.lookAt(new THREE.Vector3(@camera.position.x, @camera.position.y, @camera.position.z))
     @dlight = dlight
     dlight.shadowCameraVisible = true
     @scene.add dlight
+    @dlightSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.LineBasicMaterial({color: 0x00ff00}))
+    @scene.add @dlightSphere
     DEBUG.expose('dlight', dlight)
 
 
   render: (delta) ->
+    @person.update(delta)
+    @dlight.position.x = @camera.position.x
+    @dlight.position.y = @camera.position.y + 20
+    @dlight.position.z = @camera.position.z
+    @dlight.lookAt(@camera.position)
+    ###
     @dlightRotation += .01
     @dlightRotation %= 2 * Math.PI
-    @dlight.position.x = Math.cos(@dlightRotation) * 10 + @camera.position.x
-    @dlight.position.z = Math.sin(@dlightRotation) * 10 + @camera.position.z
-    @dlight.position.y = 20 + @camera.position.y
-    @dlight.lookAt(new THREE.Vector3(@camera.position.x, @camera.position.y, @camera.position.z))
+    @dlight.position.x = Math.cos(@dlightRotation) * 10
+    @dlight.position.z = Math.sin(@dlightRotation) * 10
+    @dlight.position.y = 20
+    @dlightSphere.position = @dlight.position
 
-    @person.update(delta)
+    @dlight.lookAt(new THREE.Vector3(0, 0, 0))
+    ###
+
     @renderer.renderer.render(@scene, @camera)
 
 p.provide('HexGame', HexGame)
