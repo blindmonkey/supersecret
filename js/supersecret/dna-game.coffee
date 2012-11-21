@@ -49,10 +49,16 @@ class DnaGame extends BaseGame
     @rotation = 0
     @pitch = 0
     @rotationalMomentum = 0
+    @distance = 27
 
 
     lastMouse = null
     dragging = false
+    $(container).bind('mousewheel', ((e, delta) ->
+      delta = e.originalEvent.wheelDeltaY
+      @distance += delta / 120
+    ).bind(this))
+
     $(container).mousedown(((e) ->
       dragging = true
       lastMouse = [e.clientX, e.clientY]
@@ -69,7 +75,7 @@ class DnaGame extends BaseGame
         lastMouse = [e.clientX, e.clientY]
       ).bind(this))
 
-    @distance = 75
+    DEBUG.expose('game', this)
 
     @placeCamera()
 
@@ -120,20 +126,27 @@ class DnaGame extends BaseGame
       v2 = new THREE.Vector3(-x, y, -z)
 
       #v = new THREE.Vector3(x, y, z)
-      geometry = new THREE.SphereGeometry(.2, 5, 5)
+      geometry = new THREE.SphereGeometry(.2, 8, 8)
       mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: random.choice(colors)}))
       mesh.position = v1
       @scene.add mesh
 
-      geometry = new THREE.SphereGeometry(.2, 5, 5)
+      geometry = new THREE.SphereGeometry(.2, 8, 8)
       mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: random.choice(colors)}))
       mesh.position = v2
+      @scene.add mesh
+
+      geometry = new THREE.CylinderGeometry(.05, .05, 3.6, 8, 8, false)
+      mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x777777}))
+      mesh.position.y = y
+      mesh.rotation.z = Math.PI / 2
+      mesh.rotation.y = -rotation# + Math.PI / 2 + Math.PI / 4
       @scene.add mesh
 
       geometry = new THREE.Geometry()
       geometry.vertices.push(v1)
       geometry.vertices.push(v2)
-      @scene.add new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0xff0000}))
+      #@scene.add new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0xff0000}))
 
 
 

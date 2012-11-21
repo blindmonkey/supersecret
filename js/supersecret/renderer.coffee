@@ -14,7 +14,7 @@ class Renderer
     NEAR = 0.1
     FAR = 10000
 
-    @renderer = new THREE.WebGLRenderer()
+    @renderer = new THREE.WebGLRenderer({antialias: true})
     @renderer.setClearColorHex( 0x000000, 1 );
     @renderer.setSize(width, height)
     $(container).append(@renderer.domElement)

@@ -4,6 +4,7 @@ VoxelGame = p.require('VoxelGame')
 WorldGame = p.require('WorldGame')
 TerrainGame = p.require('TerrainGame')
 DnaGame = p.require('DnaGame')
+HexGame = p.require('HexGame')
 FirstPerson = p.require('FirstPerson')
 
 getQueryParams = ->
@@ -36,6 +37,7 @@ window.init = (exposeDebug) ->
     pipes: PipeGame
     terrain: TerrainGame
     dna: DnaGame
+    hex: HexGame
 
   params = getQueryParams()
 
