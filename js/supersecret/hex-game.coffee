@@ -110,9 +110,6 @@ class HexGame extends BaseGame
 
     @dlightRotation = 0
     dlight = new THREE.DirectionalLight(0xff0000, 50, 500)
-    dlight.position.x = @camera.position.x
-    dlight.position.y = @camera.position.y
-    dlight.position.z = @camera.position.z
     #dlight.lookAt(new THREE.Vector3(@camera.position.x, @camera.position.y, @camera.position.z))
     @dlight = dlight
     dlight.shadowCameraVisible = true
@@ -123,10 +120,10 @@ class HexGame extends BaseGame
   render: (delta) ->
     @dlightRotation += .01
     @dlightRotation %= 2 * Math.PI
-    @dlight.position.x = Math.cos(@dlightRotation) * 10
-    @dlight.position.z = Math.sin(@dlightRotation) * 10
-    @dlight.position.y = 20
-    @dlight.lookAt(new THREE.Vector3(0, 0, 0))
+    @dlight.position.x = Math.cos(@dlightRotation) * 10 + @camera.position.x
+    @dlight.position.z = Math.sin(@dlightRotation) * 10 + @camera.position.z
+    @dlight.position.y = 20 + @camera.position.y
+    @dlight.lookAt(new THREE.Vector3(@camera.position.x, @camera.position.y, @camera.position.z))
 
     @person.update(delta)
     @renderer.renderer.render(@scene, @camera)
