@@ -1,4 +1,4 @@
-class FirstPerson
+supersecret.FirstPerson = class FirstPerson
   constructor: (container, camera, horizontalAxes) ->
     @horizontalAxes = ['x', 'z']
     @container = $(container)
@@ -121,4 +121,4 @@ class FirstPerson
   strafeRight: (speed) ->
     return @modifyPosition(@rotation + Math.PI / 2, speed)
 
-p.provide('FirstPerson', FirstPerson)
+#p.provide('FirstPerson', FirstPerson)

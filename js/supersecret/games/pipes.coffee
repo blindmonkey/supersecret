@@ -1,6 +1,3 @@
-Renderer = p.require('Renderer')
-FirstPerson = p.require('FirstPerson')
-
 random =
   random: Math.random
   range: (start, end) ->
@@ -10,9 +7,9 @@ random =
     return Math.floor(Math.random() * (end - start)) + start
   choice: (l) -> l[Math.floor(Math.random() * l.length)]
 
-class PipeGame
+supersecret.Game = class PipeGame
   constructor: (container, width, height, opt_renderer, opt_scene, opt_camera) ->
-    @renderer = opt_renderer || new Renderer(container, width, height)
+    @renderer = opt_renderer || new supersecret.Renderer(container, width, height)
     @scene = opt_scene || new THREE.Scene()
     @camera = opt_camera || @initCamera(width, height)
 
@@ -37,7 +34,7 @@ class PipeGame
     DEBUG.expose('scene', @scene)
 
     @handle = null
-    @person = new FirstPerson(container, @camera)
+    @person = new supersecret.FirstPerson(container, @camera)
     @person.rotation = 2 * Math.PI
     @person.pitch = 0.033
     @person.updateCamera()
@@ -305,7 +302,3 @@ class PipeGame
       @updatedPipeGeometry = new Date().getTime()
     @person.update(delta)
     @renderer.renderer.render(@scene, @camera)
-
-
-
-p.provide('PipeGame', PipeGame)

@@ -1,5 +1,3 @@
-requestAnimationFrame = p.require('requestAnimationFrame')
-
 average = (l) ->
   s = 0
   for i in l
@@ -7,19 +5,24 @@ average = (l) ->
   return s / l.length
 
 
-class Renderer
+supersecret.Renderer = class Renderer
   constructor: (container, width, height) ->
+    @width = width
+    @height = height
     VIEW_ANGLE = 45
     ASPECT = width / height
     NEAR = 0.1
     FAR = 10000
 
     @renderer = new THREE.WebGLRenderer({antialias: true})
-    @renderer.setClearColorHex( 0x000000, 1 );
+    @renderer.sortObjects = false
+    @renderer.setClearColorHex( 0x000000, 1 )
     @renderer.setSize(width, height)
     $(container).append(@renderer.domElement)
 
   resize: (width, height) ->
+    @width = width
+    @height = height
     @renderer.setSize(width, height)
 
   start: (tick) ->
@@ -55,5 +58,3 @@ class Renderer
         lastTime = new Date().getTime()
         f()
     }
-
-p.provide('Renderer', Renderer)

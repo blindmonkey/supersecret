@@ -1,7 +1,3 @@
-Renderer = p.require('Renderer')
-FirstPerson = p.require('FirstPerson')
-BaseGame = p.require('BaseGame')
-
 lerpColor = (c1, c2, x) ->
   c1b = c1 & 0xFF
   c1g = (c1 & 0xFF00) >> 8
@@ -28,7 +24,7 @@ lerpColor = (c1, c2, x) ->
   return (outr << 16) + (outg << 8) + outb
 
 
-class WorldGame extends BaseGame
+supersecret.Game = class WorldGame extends supersecret.BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
     super(container, width, height, opt_scene, opt_camera)
 
@@ -364,6 +360,3 @@ class WorldGame extends BaseGame
       @placeCamera()
     #@person.update(delta)
     @renderer.renderer.render(@scene, @camera)
-
-
-p.provide('WorldGame', WorldGame)

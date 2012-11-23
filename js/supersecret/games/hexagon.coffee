@@ -1,7 +1,3 @@
-Renderer = p.require('Renderer')
-FirstPerson = p.require('FirstPerson')
-BaseGame = p.require('BaseGame')
-
 lerpColor = (c1, c2, x) ->
   c1b = c1 & 0xFF
   c1g = (c1 & 0xFF00) >> 8
@@ -28,12 +24,7 @@ lerpColor = (c1, c2, x) ->
   return (outr << 16) + (outg << 8) + outb
 
 
-random =
-  choice: (l) ->
-    return l[Math.floor(Math.random() * l.length)]
-
-
-class DnaGame extends BaseGame
+supersecret.Game = class HexagonGame extends supersecret.BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
     super(container, width, height, opt_scene, opt_camera)
 
@@ -49,16 +40,10 @@ class DnaGame extends BaseGame
     @rotation = 0
     @pitch = 0
     @rotationalMomentum = 0
-    @distance = 27
 
 
     lastMouse = null
     dragging = false
-    $(container).bind('mousewheel', ((e, delta) ->
-      delta = e.originalEvent.wheelDeltaY
-      @distance += delta / 120
-    ).bind(this))
-
     $(container).mousedown(((e) ->
       dragging = true
       lastMouse = [e.clientX, e.clientY]
@@ -75,7 +60,7 @@ class DnaGame extends BaseGame
         lastMouse = [e.clientX, e.clientY]
       ).bind(this))
 
-    DEBUG.expose('game', this)
+    @distance = 75
 
     @placeCamera()
 
@@ -117,46 +102,31 @@ class DnaGame extends BaseGame
     @camera.lookAt(new THREE.Vector3(0, 0, 0))
 
   initGeometry: ->
-    colors = [0xff0000, 0x00ff00, 0x0000ff]
-    for y in [-10..10]
-      rotation = (y / 15 * Math.PI * 2) % (Math.PI * 2)
-      x = Math.cos(rotation) * 2
-      z = Math.sin(rotation) * 2
-      v1 = new THREE.Vector3(x, y, z)
-      v2 = new THREE.Vector3(-x, y, -z)
+    geometry = new THREE.Geometry()
+    size = 2
+    r = 0
+    geometry.vertices.push new THREE.Vector3(Math.cos(r) * size, 0, Math.sin(r) * size)
+    r += Math.PI * 2 / 5
+    geometry.vertices.push new THREE.Vector3(Math.cos(r) * size, 0, Math.sin(r) * size)
+    r += Math.PI * 2 / 5
+    geometry.vertices.push new THREE.Vector3(Math.cos(r) * size, 0, Math.sin(r) * size)
+    r += Math.PI * 2 / 5
+    geometry.vertices.push new THREE.Vector3(Math.cos(r) * size, 0, Math.sin(r) * size)
+    r += Math.PI * 2 / 5
+    geometry.vertices.push new THREE.Vector3(Math.cos(r) * size, 0, Math.sin(r) * size)
 
-      #v = new THREE.Vector3(x, y, z)
-      geometry = new THREE.SphereGeometry(.2, 8, 8)
-      mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: random.choice(colors)}))
-      mesh.position = v1
-      @scene.add mesh
-
-      geometry = new THREE.SphereGeometry(.2, 8, 8)
-      mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: random.choice(colors)}))
-      mesh.position = v2
-      @scene.add mesh
-
-      geometry = new THREE.CylinderGeometry(.05, .05, 3.6, 8, 8, false)
-      mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({color: 0x777777}))
-      mesh.position.y = y
-      mesh.rotation.z = Math.PI / 2
-      mesh.rotation.y = -rotation# + Math.PI / 2 + Math.PI / 4
-      @scene.add mesh
-
-      geometry = new THREE.Geometry()
-      geometry.vertices.push(v1)
-      geometry.vertices.push(v2)
-      #@scene.add new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0xff0000}))
+    for vertex in geometry.vertices
+      g = new THREE.SphereGeometry(.5, 8, 8)
+      m = new THREE.Mesh(g, new THREE.LineBasicMaterial({color: 0x00ff00}))
+      m.position = vertex
+      @scene.add m
 
 
 
-
-    #material = new THREE.MeshPhongMaterial({color: 0xff0000, ambient: 0x505050})
-    #@scene.add new THREE.Mesh(geometry, material)
 
   initLights: ->
     console.log('initializing lights!')
-    #@scene.add new THREE.AmbientLight(0x505050)
+    @scene.add new THREE.AmbientLight(0xffffff)
     light = new THREE.PointLight(0x505050, 3, 50)
     light.position.x = -20
     light.position.y = 0
@@ -164,26 +134,9 @@ class DnaGame extends BaseGame
     DEBUG.expose('light', light)
     @scene.add light
 
-    light = new THREE.PointLight(0x505050, 3, 50)
-    light.position.x = 20
-    light.position.y = 0
-    light.position.z = 0
-    DEBUG.expose('light', light)
-    @scene.add light
-
-    light = new THREE.PointLight(0x505050, 3, 50)
-    light.position.x = 0
-    light.position.y = 0
-    light.position.z = 20
-    DEBUG.expose('light', light)
-    @scene.add light
-
-    light = new THREE.PointLight(0x505050, 3, 50)
-    light.position.x = 0
-    light.position.y = 0
-    light.position.z = -20
-    DEBUG.expose('light', light)
-    @scene.add light
+    dlight = new THREE.DirectionalLight(0xffffff, .6)
+    dlight.position.set(1, 1, 1)
+    @scene.add dlight
 
   render: (delta) ->
     @rotationalMomentum *= .9
@@ -193,6 +146,3 @@ class DnaGame extends BaseGame
       @placeCamera()
     #@person.update(delta)
     @renderer.renderer.render(@scene, @camera)
-
-
-p.provide('DnaGame', DnaGame)

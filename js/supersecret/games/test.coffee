@@ -1,9 +1,6 @@
-Renderer = p.require('Renderer')
-FirstPerson = p.require('FirstPerson')
-
-class Game
+supersecret.Game = class Game
   constructor: (container, width, height) ->
-    @renderer = new Renderer(container, width, height)
+    @renderer = new supersecret.Renderer(container, width, height)
     @scene = new THREE.Scene();
     @camera = @initCamera(width, height)
 
@@ -17,7 +14,7 @@ class Game
     console.log("Initializing...")
     @initGeometry()
     @initLights()
-    @person = new FirstPerson(container, @camera)
+    @person = new supersecret.FirstPerson(container, @camera)
     console.log('Initialized')
 
     @person.rotation = 3.288

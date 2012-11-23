@@ -1,8 +1,8 @@
-Renderer = p.require('Renderer')
+#Renderer = p.require('Renderer')
 
-class BaseGame
+supersecret.BaseGame = class BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
-    @renderer = new Renderer(container, width, height)
+    @renderer = new supersecret.Renderer(container, width, height)
     @scene = opt_scene or new THREE.Scene()
     @camera = opt_camera or @initCamera(width, height)
 
@@ -15,7 +15,11 @@ class BaseGame
 
     $(document).keydown(((e) ->
       if e.keyCode == 27
-        @stop()).bind(this))
+        if not @renderer.stopped
+          @stop()
+        else
+          @handle.unpause()
+    ).bind(this))
 
     @initGeometry and @initGeometry()
     @initLights and @initLights()
@@ -40,4 +44,4 @@ class BaseGame
   stop: ->
     @handle.pause()
 
-p.provide('BaseGame', BaseGame)
+#p.provide('BaseGame', BaseGame)

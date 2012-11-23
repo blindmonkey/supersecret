@@ -1,7 +1,3 @@
-Renderer = p.require('Renderer')
-FirstPerson = p.require('FirstPerson')
-BaseGame = p.require('BaseGame')
-
 class ChunkManager
   constructor: (scene, chunkSize, tileSize) ->
     @scene = scene
@@ -137,11 +133,7 @@ class ChunkManager
     ).bind(this)
     continueX(0)
 
-
-
-
-
-class HexGame extends BaseGame
+supersecret.Game = class HexGame extends supersecret.BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
     @chunkSize =
       height: 59
@@ -152,7 +144,7 @@ class HexGame extends BaseGame
 
     DEBUG.expose('scene', @scene)
 
-    @person = new FirstPerson(container, @camera)
+    @person = new supersecret.FirstPerson(container, @camera)
     @person.updateCamera()
 
 
@@ -211,5 +203,3 @@ class HexGame extends BaseGame
     # @maybeMakeChunk(chunkX+1, chunkY-1)
 
     @renderer.renderer.render(@scene, @camera)
-
-p.provide('HexGame', HexGame)
