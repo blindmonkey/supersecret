@@ -14,7 +14,7 @@ getQueryParams = ->
   return params
 
 $.ajax('js/supersecret/game-list.json').done((gamelist) ->
-  games = gamelist.games
+  games = JSON.parse(gamelist).games
   params = getQueryParams()
   gameIndex = games.indexOf(params.game)
   if gameIndex >= 0

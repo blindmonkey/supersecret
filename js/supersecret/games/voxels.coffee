@@ -464,10 +464,10 @@ supersecret.Game = class VoxelGame extends supersecret.BaseGame
         multiplier: 1 / 2
       }, {
         scale: 1 / 128
-        multiplier: 1 / 4
+        multiplier: 1 / 3
       }, {
         scale: 1 / 256
-        multiplier: 1 / 8
+        multiplier: 1 / 4
         }])
 
     rangeTracker = new Statistician((oldObj, newObj) ->
@@ -495,9 +495,9 @@ supersecret.Game = class VoxelGame extends supersecret.BaseGame
     #   return n > 0)
 
     chunkSize = @chunkSize =
-      x: 128
+      x: 32
       y: 128
-      z: 128
+      z: 32
     horizontalScale = 2
     verticalScale = 1
     cubeSize = @cubeSize = 4
