@@ -10,69 +10,196 @@ shuffle = (l) ->
       newl[j] = t
   return newl
 
+generateId = (obj) ->
+  if typeof(obj) == 'number'
+    return 'number' + obj
+  else if typeof(obj) == 'string'
+    return 'string' + obj
+  else
+    return 'object' + JSON.stringify(obj)
+
+class Set
+  constructor: (l) ->
+    @items = {}
+    @length = 0
+    if l
+      for i in l
+        @add(i)
+
+  map: (f) ->
+    out = []
+    @forEach((item) ->
+      out.push f(item)
+    )
+    return out
+
+  toArray: ->
+    out = []
+    @forEach((item) ->
+      out.push item)
+    return out
+
+  forEach: (f) ->
+    for item of @items
+      f(@items[item])
+
+  add: (item) ->
+    id = generateId(item)
+    if id not of @items
+      @items[id] = JSON.parse(JSON.stringify(item))
+      @length++
+
+  contains: (item) ->
+    id = generateId(item)
+    return id of @items
+
+  remove: (item) ->
+    id = generateId(item)
+    if id of @items
+      delete @items[id]
+      @length--
+
+  union: (other) ->
+    newSet = new Set()
+    @forEach((item) ->
+      newSet.add(item))
+    other.forEach((item) ->
+      newSet.add(item))
+    return newSet
+
+  intersection: (other) ->
+    newSet = new Set()
+    @forEach((item) ->
+      newSet.add(item) if other.contains(item))
+    return newSet
+
+  subtract: (other) ->
+    newSet = new Set()
+    @forEach(((item) ->
+      if not other.contains(item)
+        newSet.add item
+    ).bind(this))
+    return newSet
+
 class Graph
   constructor: ->
-    @cache = {}
+    @nodes = {}
 
-  generateId: (obj) ->
-    if typeof(obj) == 'number'
-      return 'number' + obj
-    else if typeof(obj) == 'string'
-      return 'string' + obj
-    else
-      return 'object' + JSON.stringify(obj)
+  addNode: (obj) ->
+    id = generateId(obj)
+    if not @exists(obj)
+      @nodes[id] = {data: obj, connections: new Set()}
+    return id
+
+  exists: (obj) ->
+    id = generateId(obj)
+    return id of @nodes
+
+  connect: (obj1, obj2) ->
+    id1 = @addNode(obj1)
+    id2 = @addNode(obj2)
+    @nodes[id1].connections.add(id2)
+    @nodes[id2].connections.add(id1)
+
+  disconnect: (obj1, obj2) ->
+    id1 = generateId(obj1)
+    id2 = generateId(obj2)
+    @nodes[id1].connections.remove(id2)
+    @nodes[id2].connections.remove(id1)
+
+  connected: (obj1, obj2) ->
+    id1 = generateId(obj1)
+    id2 = generateId(obj2)
+    return id1 of @nodes and id2 of @nodes and @nodes[id1].connections.contains(id2)
+
+  connections: (obj) ->
+    id = generateId(obj)
+    out = []
+    return out if id not of @nodes
+    @nodes[id].connections.forEach((item) ->
+      out.push item)
+    return out
+
+
 
 class MazeGenerator
-  constructor: (width, height) ->
-    @grid = new supersecret.Grid(2, [width, height])
-    @wallGrid = new supersecret.Grid(2, [width, height])
-    start =
-      x: Math.floor(Math.random() * @grid.size[0])
-      y: Math.floor(Math.random() * @grid.size[1])
+  constructor: (width, height, opt_generate) ->
+    @size =
+      width: width
+      height: height
+    @graph = new Graph()
+    start = [Math.floor(Math.random() * @size.width), Math.floor(Math.random() * @size.height)]
+    @stack = [[null, start]]
+    if opt_generate is undefined or opt_generate
+      while not @generated()
+        @generateNext()
 
-    findUnvisitedNeighbors = ((p) ->
-      neighbors = []
-      neighbors.push({from:p, x:p.x-1, y:p.y}) if p.x > 0 and not @grid.get(p.x - 1, p.y)
-      neighbors.push({from:p, x:p.x+1, y:p.y}) if p.x < @grid.size[0] - 1 and not @grid.get(p.x + 1, p.y)
-      neighbors.push({from:p, x:p.x, y:p.y-1}) if p.y > 0 and not @grid.get(p.x, p.y - 1)
-      neighbors.push({from:p, x:p.x, y:p.y+1}) if p.y < @grid.size[1] - 1 and not @grid.get(p.x, p.y + 1)
-      return neighbors
-    ).bind(this)
+  draw: (context) ->
+    for x in [0..@size.width - 1]
+      for y in [0..@size.height - 1]
+        p = [x, y]
+        context.fillStyle = '#000'
+        if @graph.exists(p)
+          context.fillStyle = '#fff'
+        xx = x / @size.width * context.canvas.width
+        yy = y / @size.height * context.canvas.height
+        dx = 1 / @size.width * context.canvas.width
+        dy = 1 / @size.height * context.canvas.height
+        context.fillRect(
+          xx,
+          yy,
+          dx,
+          dy)
+        if not @graph.connected([x, y], [x - 1, y])
+          context.strokeStyle = '#000'
+          context.beginPath()
+          context.moveTo(xx, yy)
+          context.lineTo(xx, yy + dy)
+          context.closePath()
+          context.stroke()
+        # if not @graph.connected([x, y], [x + 1, y])
+        #   context.strokeStyle = '#000'
+        #   context.beginPath()
+        #   context.moveTo(xx + dx, yy)
+        #   context.lineTo(xx + dx, yy + dy)
+        #   context.closePath()
+        #   context.stroke()
+        if not @graph.connected([x, y], [x, y - 1])
+          context.strokeStyle = '#000'
+          context.beginPath()
+          context.moveTo(xx, yy)
+          context.lineTo(xx + dx, yy)
+          context.closePath()
+          context.stroke()
+        # if not @graph.connected([x, y], [x, y + 1])
+        #   context.strokeStyle = '#000'
+        #   context.beginPath()
+        #   context.moveTo(xx, yy + dy)
+        #   context.lineTo(xx + dx, yy + dy)
+        #   context.closePath()
+        #   context.stroke()
 
-    debugger
-    @stack = [start]
-    while @stack.length > 0
-      position = @stack.pop()
-      cell = @grid.get(position.x, position.y)
-      continue if cell
-      @grid.set(true, position.x, position.y)
-      if position.from
-        if position.from.x > position.x or position.from.y > position.y
-          wall = @wallGrid.get(position.x, position.y)
-          if not wall
-            wall = {}
-            @wallGrid.set(wall, position.x, position.y)
-          if position.from.x > position.x
-            wall.right = true
-          else
-            wall.bottom = true
-        else if position.from.x < position.x
-          wall = @wallGrid.get(position.from.x, position.from.y)
-          if not wall
-            wall = {}
-            @wallGrid.set(wall, position.from.x, position.from.y)
-          if position.from.x < position.x
-            wall.right = true
-          else
-            wall.bottom = true
-      neighbors = shuffle(findUnvisitedNeighbors(position))
-      for neighbor in neighbors
-        @stack.push neighbor
-    console.log(@grid)
+  generated: ->
+    return @stack.length == 0
 
-
-
-
+  generateNext: ->
+    return if @generated()
+    item = null
+    prev = null
+    while @stack.length > 0 and item == null
+      [prev, item] = @stack.pop()
+      item = null if @graph.exists(item)
+    return if item == null
+    [x, y] = item
+    @graph.addNode(item)
+    if prev
+      @graph.connect(prev, item)
+    neighborSet = new Set([[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]])
+    neighbors = shuffle(neighborSet.toArray())
+    for neighbor in neighbors
+      [xx, yy] = neighbor
+      if not @graph.exists(neighbor) and 0 <= xx < @size.width and 0 <= yy < @size.height
+        @stack.push([item, neighbor])
 
 supersecret.Game = class Maze2
   constructor: (container, width, height) ->
@@ -86,143 +213,19 @@ supersecret.Game = class Maze2
     @context.fillRect(0, 0, canvas.width, canvas.height)
 
     noise = new SimplexNoise()
-    @grid = new supersecret.Grid(2, [20, 20])
-    start =
-      x: Math.floor(Math.random() * @grid.size[0])
-      y: Math.floor(Math.random() * @grid.size[1])
-    @stack = [{from:null, to:[start.x, start.y]}]
     @updateDelta = 0
-
-    @paths = {}
 
     console.log('generating maze...')
     @maze = new MazeGenerator(20, 20)
-    console.log('maze generated')
 
   render: (delta) ->
-    @maze.grid.forEach(((x, y) ->
-      xx = x / @grid.size[0] * @context.canvas.width
-      yy = y / @grid.size[0] * @context.canvas.height
-      dx = 1 / @grid.size[0] * @context.canvas.width
-      dy = 1 / @grid.size[0] * @context.canvas.height
-      @context.fillStyle = '#fff'
-      @context.fillRect(
-        xx,
-        yy,
-        dx,
-        dy)
-      if x < @maze.wallGrid.size[0] and y < @maze.wallGrid.size[1]
-        wall = @maze.wallGrid.get(x, y)
-        if wall and wall.right
-          @context.strokeStyle = '#000'
-          @context.beginPath()
-          @context.moveTo(xx + dx, yy)
-          @context.lineTo(xx + dx, yy + dy)
-          @context.closePath()
-          @context.stroke()
-        if wall and wall.bottom
-          @context.strokeStyle = '#000'
-          @context.beginPath()
-          @context.moveTo(xx, yy + dy)
-          @context.lineTo(xx + dx, yy + dy)
-          @context.closePath()
-          @context.stroke()
-    ).bind(this))
-    return
-    findUnvisitedNeighbors = ((x, y) ->
-      neighbors = []
-      if x > 0 and not @grid.get(x - 1, y)
-        neighbors.push([x - 1, y])
-      if y > 0 and not @grid.get(x, y - 1)
-        neighbors.push([x, y - 1])
-      if x < @grid.size[0] - 1 and not @grid.get(x + 1, y)
-        neighbors.push([x + 1, y])
-      if y < @grid.size[1] - 1 and not @grid.get(x, y + 1)
-        neighbors.push([x, y + 1])
-      return neighbors
-    ).bind(this)
-
-    addPath = ((from, to) ->
-      fromKey = from.join('/')
-      toKey = to.join('/')
-      @paths[fromKey + '=' + toKey] = true
-      @paths[toKey + '=' + fromKey] = true
-    ).bind(this)
-
-    hasPath = ((from, to) ->
-      fromKey = from.join('/')
-      toKey = to.join('/')
-      return !!@paths[fromKey + '=' + toKey]
-    ).bind(this)
-
-    if @stack.length > 0
+    if not @maze.generated()
       @updateDelta += delta
       if @updateDelta > 10
-        console.log('UPDATE')
         @updateDelta = 0
-        done = false
-        neighbors = null
-        until done or @stack.length == 0
-          p = @stack.pop()
-          source = p.from
-          p = p.to
-          continue if @grid.get(p...)
-          @grid.set(true, p...)
-          if source?
-            addPath(source, p)
-          neighbors = findUnvisitedNeighbors(p...)
-          if neighbors.length > 0
-            done = true
-        if done
-          neighbors = shuffle(neighbors)
-          console.log('pushing more')
-          for n in neighbors
-            @stack.push({from:p, to:n})
-
-    @grid.forEach(((x, y) ->
-      cell = @grid.get(x, y)
-      if cell
-        @context.fillStyle = '#fff'
-      else
-        @context.fillStyle = '#000'
-      xx = x / @grid.size[0] * @context.canvas.width
-      yy = y / @grid.size[0] * @context.canvas.height
-      dx = 1 / @grid.size[0] * @context.canvas.width
-      dy = 1 / @grid.size[0] * @context.canvas.height
-      @context.fillRect(
-        xx,
-        yy,
-        dx,
-        dy)
-      if not hasPath([x, y], [x - 1, y])
-        @context.strokeStyle = '#000'
-        @context.beginPath()
-        @context.moveTo(xx, yy)
-        @context.lineTo(xx, yy + dy)
-        @context.closePath()
-        @context.stroke()
-      if not hasPath([x, y], [x + 1, y])
-        @context.strokeStyle = '#000'
-        @context.beginPath()
-        @context.moveTo(xx + dx, yy)
-        @context.lineTo(xx + dx, yy + dy)
-        @context.closePath()
-        @context.stroke()
-      if not hasPath([x, y], [x, y - 1])
-        @context.strokeStyle = '#000'
-        @context.beginPath()
-        @context.moveTo(xx, yy)
-        @context.lineTo(xx + dx, yy)
-        @context.closePath()
-        @context.stroke()
-      if not hasPath([x, y], [x, y + 1])
-        @context.strokeStyle = '#000'
-        @context.beginPath()
-        @context.moveTo(xx, yy + dy)
-        @context.lineTo(xx + dx, yy + dy)
-        @context.closePath()
-        @context.stroke()
-    ).bind(this)) if @grid.hasData()
+        #debugger
+        @maze.generateNext()
+    @maze.draw(@context)
 
   start: ->
     lastRender = new Date().getTime()
