@@ -52,6 +52,21 @@ class supersecret.Grid
     ).bind(this)
     forEachForCoord(0, [])
 
+  toArray: ->
+    mapEachCoord = ((coordIndex, coords) ->
+      r = []
+      for c in [@limits[coordIndex].min..@limits[coordIndex].max]
+        item = null
+        if coordIndex < @limits.length - 1
+          item = mapEachCoord(coordIndex + 1, coords.concat([c]))
+        else
+          item = @get(coords...)
+        r.push item
+      return r
+    ).bind(this)
+    return mapEachCoord(0, [])
+
+
   get: (coords...) ->
     if not @isInfinite and not @isValid(coords...)
       throw 'Coordinate is out of bounds'

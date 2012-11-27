@@ -98,6 +98,7 @@ class ChunkManager
     return x + '/' + y + '/' + z
 
   generateChunk: (x, y, z) ->
+    @ongenerate and @ongenerate(x, y, z)
     chunkData = @initChunk and @initChunk.bind(this)(x, y, z) or null
     @set(x, y, z, chunkData)
     return chunkData
@@ -313,6 +314,116 @@ class ChunkGeometryManager
     # console.log("Geometry generated. Computing face normals for " + geometry.faces.length + " faces")
     if geometry.faces.length == 0
       return undefined
+    geometry.computeFaceNormals()
+    # console.log('done')
+    #material = new THREE.LineBasicMaterial({color: 0xff0000})})
+    material = new THREE.MeshPhongMaterial({color: 0xff0000})
+    mesh = new THREE.Mesh(geometry, material)
+    return mesh
+
+  createVoxelFaces: (x, y, z) ->
+    voxel = @chunk.get(x, y, z)
+    neighbors = @chunk.getNeighbors(x, y, z)
+    px = x
+    py = y
+    pz = z
+    x += 1
+    y += 1
+    z += 1
+
+    faces = {}
+    verticesSize =
+      x: @chunk.size.x + 1
+      y: @chunk.size.y + 1
+      z: @chunk.size.z + 1
+
+    if not neighbors.above
+      faces.above = [{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, y * @cubeSize, z * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, y * @cubeSize, pz * @cubeSize)},{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(px * @cubeSize, y * @cubeSize, pz * @cubeSize)}]
+
+    if not neighbors.below
+      # if py == 0
+      #   console.log("CREATING A BELOW FACE FOR 0", px, pz, neighbors.below)
+      faces.below = [{
+          a:new THREE.Vector3(px * @cubeSize, py * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, py * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, py * @cubeSize, z * @cubeSize)},{
+          a:new THREE.Vector3(px * @cubeSize, py * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(px * @cubeSize, py * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, py * @cubeSize, pz * @cubeSize)}]
+
+    if not neighbors.left
+      faces.left = [{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(px * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(px * @cubeSize, py * @cubeSize, z * @cubeSize)},{
+          a:new THREE.Vector3(px * @cubeSize, py * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(px * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(px * @cubeSize, py * @cubeSize, pz * @cubeSize)}]
+
+    if not neighbors.right
+      faces.right = [{
+          a:new THREE.Vector3(x * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, py * @cubeSize, z * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, y * @cubeSize, pz * @cubeSize)},{
+          a:new THREE.Vector3(x * @cubeSize, py * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, py * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, y * @cubeSize, pz * @cubeSize)}]
+
+    if not neighbors.back
+      faces.back = [{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, py * @cubeSize, pz * @cubeSize)},{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, pz * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, py * @cubeSize, pz * @cubeSize),
+          c:new THREE.Vector3(px * @cubeSize, py * @cubeSize, pz * @cubeSize)}]
+
+    if not neighbors.front
+      faces.front = [{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(x * @cubeSize, py * @cubeSize, z * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, y * @cubeSize, z * @cubeSize)},{
+          a:new THREE.Vector3(px * @cubeSize, y * @cubeSize, z * @cubeSize),
+          b:new THREE.Vector3(px * @cubeSize, py * @cubeSize, z * @cubeSize),
+          c:new THREE.Vector3(x * @cubeSize, py * @cubeSize, z * @cubeSize)}]
+    return faces
+
+  init: ->
+    console.log("Generating geometry")
+    #geometry = new THREE.Geometry()
+    faceManager = new supersecret.FaceManager()
+
+    meshes = []
+    #console.log('geo init')
+    updater = new Updater(100)
+    for z in [0..@chunk.size.z]
+      for y in [0..@chunk.size.y]
+        for x in [0..@chunk.size.x]
+          #updater.update('Current coord: ' + x + ', ' + y + ', ' + z)
+          #geometry.vertices.push(new THREE.Vector3(x * @cubeSize, y * @cubeSize, z * @cubeSize))
+          if x > 0 and y > 0 and z > 0
+            #voxel = @chunk.get({x:x-1,y:y-1,z:z-1})
+            voxel = @chunk.get(x-1,y-1,z-1)
+            # if x == 2 and y == 2 and z == 2
+            #   console.log(voxel, {x:x-1,y:y-1,z:z-1})
+            continue if not voxel
+            faces = @createVoxelFaces(x-1, y-1, z-1)
+            faceManager.addFaces(faces.above) if faces.above
+            faceManager.addFaces(faces.below) if faces.below
+            faceManager.addFaces(faces.left) if faces.left
+            faceManager.addFaces(faces.right) if faces.right
+            faceManager.addFaces(faces.back) if faces.back
+            faceManager.addFaces(faces.front) if faces.front
+    # console.log("Geometry generated. Computing face normals for " + geometry.faces.length + " faces")
+    # if geometry.faces.length == 0
+    #   return undefined
+    geometry = faceManager.createGeometry()
     geometry.computeFaceNormals()
     # console.log('done')
     #material = new THREE.LineBasicMaterial({color: 0xff0000})})
