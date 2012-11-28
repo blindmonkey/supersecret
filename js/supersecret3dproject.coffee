@@ -37,7 +37,7 @@ window.init = (exposeDebug) ->
     game.start()
 
   waitForLoad = ->
-    if supersecret.Game
+    if supersecret.Game and (supersecret.Game.loaded is undefined or supersecret.Game.loaded)
       loadGame()
     else
       setTimeout(waitForLoad, 100)

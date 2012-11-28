@@ -1,13 +1,8 @@
-random =
-  random: Math.random
-  range: (start, end) ->
-    if not end?
-      end = start
-      start = 0
-    return Math.floor(Math.random() * (end - start)) + start
-  choice: (l) -> l[Math.floor(Math.random() * l.length)]
+lib.load('random', 'firstperson', ->
+  supersecret.Game.loaded = true)
 
 supersecret.Game = class PipeGame
+  @loaded: false
   constructor: (container, width, height, opt_renderer, opt_scene, opt_camera) ->
     @renderer = opt_renderer || new supersecret.Renderer(container, width, height)
     @scene = opt_scene || new THREE.Scene()
@@ -34,7 +29,7 @@ supersecret.Game = class PipeGame
     DEBUG.expose('scene', @scene)
 
     @handle = null
-    @person = new supersecret.FirstPerson(container, @camera)
+    @person = new FirstPerson(container, @camera)
     @person.rotation = 2 * Math.PI
     @person.pitch = 0.033
     @person.updateCamera()
