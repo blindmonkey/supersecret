@@ -25,7 +25,7 @@ supersecret.BaseGame = class BaseGame
     @initLights and @initLights()
 
   initCamera: (width, height) ->
-    VIEW_ANGLE = 45
+    VIEW_ANGLE = @viewAngle or 45
     ASPECT = width / height
     NEAR = 0.1
     FAR = 10000

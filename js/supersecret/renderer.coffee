@@ -6,15 +6,16 @@ average = (l) ->
 
 
 supersecret.Renderer = class Renderer
-  constructor: (container, width, height) ->
+  constructor: (container, width, height, opt_viewangle) ->
     @width = width
     @height = height
-    VIEW_ANGLE = 45
+    VIEW_ANGLE = opt_viewangle or 45
     ASPECT = width / height
     NEAR = 0.1
     FAR = 10000
 
     @renderer = new THREE.WebGLRenderer({antialias: true})
+    #@renderer = new THREE.CanvasRenderer()
     @renderer.sortObjects = false
     @renderer.setClearColorHex( 0x000000, 1 )
     @renderer.setSize(width, height)

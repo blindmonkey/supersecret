@@ -1,4 +1,4 @@
-getQueryParams = ->
+window.getQueryParams = ->
   query = window.location.href.split('?').splice(1).join('?')
   components = query.split('&')
   params = {}
