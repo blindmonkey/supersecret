@@ -48,16 +48,7 @@ window.lib.load = (names..., callback) ->
             cb()
     )
 
-
-
-$.ajax('js/supersecret/game-list.json').done((gamelist) ->
-  games = (if typeof(gamelist) == 'string' then JSON.parse(gamelist) else gamelist).games
-  params = getQueryParams()
-  gameIndex = games.indexOf(params.game)
-  if gameIndex >= 0
-    CoffeeScript.load('js/supersecret/games/' + params.game + '.coffee', ->
-      console.log('Game loaded');
-    )
-  else
-   console.error('Game ' + params.game + ' not found')
+params = getQueryParams()
+CoffeeScript.load('js/supersecret/games/' + params.game + '.coffee', ->
+  console.log('Game loaded');
 )

@@ -14,6 +14,12 @@ lib.export('MazeGenerator',
         while not @generated()
           @generateNext()
 
+    canMove: (x, y, xto, yto) ->
+      return @graph.connected([x, y], [xto, yto])
+
+    getMoves: (x, y) ->
+      return @graph.connections([x, y])
+
     generated: ->
       return @stack.length == 0
 
