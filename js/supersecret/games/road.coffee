@@ -7,6 +7,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     params = getQueryParams()
     @viewAngle = parseFloat(params.viewAngle) or 90
 
+    @road = []
+
+
     super(container, width, height, opt_scene, opt_camera)
 
     @person = new FirstPerson(container, @camera)

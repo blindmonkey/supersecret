@@ -3,12 +3,25 @@ lib.export('FaceManager', class supersecret.FaceManager
     @faces = []
     @vectors = []
     @vectorIndex = {}
+    @faceIndex = {}
 
   getVectorId: (v) ->
+    if v instanceof Array
+      if v.length != 3
+        throw "invalid vector"
+      return v.join('/')
     return v.x + '/' + v.y + '/' + v.z
+
+  getFaceId: (f) ->
+    va = @getVectorId(f.a)
+    vb = @getVectorId(f.b)
+    vc = @getVectorId(f.c)
+    return va + '|' + vb + '|' + vc
 
   addVector: (v) ->
     vectorId = @getVectorId(v)
+    if v instanceof Array
+      v = new THREE.Vector3(v...)
     if vectorId not of @vectorIndex
       @vectorIndex[vectorId] = @vectors.length
       @vectors.push(v)
@@ -26,11 +39,15 @@ lib.export('FaceManager', class supersecret.FaceManager
 
   addFace: (a, b, c, doubleSided) ->
     [aId, bId, cId] = (@getVectorId(v) for v in [a, b, c])
-    @faces.push @processFace({
+    face = {
       a: a
       b: b
       c: c
-    })
+    }
+    faceId = @getFaceId(face)
+    if faceId not of @faceIndex
+      @faces.push @processFace(face)
+      @faceIndex[faceId] = face
     if doubleSided
       @addFace(a, c, b)
 
