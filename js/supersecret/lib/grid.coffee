@@ -54,6 +54,22 @@ lib.load('events', ->
       ).bind(this)
       forEachForCoord(0, [])
 
+    forEachAsync: (f, callback) ->
+      lastUpdated = new Date().getTime()
+      forEachForCoord = ((coordIndex, coordList, start) ->
+        for c in [start..@limits[coordIndex].max]
+          if coordIndex < @limits.length - 1
+            forEachForCoord(coordIndex + 1, coordList.concat([c]))
+          else
+            f(coordList.concat([c])...)
+          if new Date().getTime() - lastUpdated > 100 and @limits[coordIndex].max - c > 10
+            lastUpdated = new Date().getTime()
+            setTimeout(-> forEachForCoord(coordIndex, coordList, c + 1))
+            return
+        callback()
+      ).bind(this)
+      forEachForCoord(0, [], 0)
+
     toArray: ->
       mapEachCoord = ((coordIndex, coords) ->
         r = []
