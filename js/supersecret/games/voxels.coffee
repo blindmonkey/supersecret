@@ -1,6 +1,329 @@
 lib.load('firstperson', 'facemanager', ->
   supersecret.Game.loaded = true)
 
+generateMarchingCubesGeometry = (grid, scale) ->
+  scale = scale or 5
+  getCoordFromIndex = (index) ->
+    z = index % 2
+    y = (index - z) / 2 % 2
+    x = ((index - z) / 2 - y) / 2 % 2
+    return [x, y, z]
+
+  getIndexFromCoord = (x, y, z) ->
+    return x * 4 + y * 2 + z
+
+  flipX = ((x, y, z) ->
+    return [1 - x, y, z]
+  ).bind(this)
+
+  flipY = ((x, y, z) ->
+    return [x, 1 - y, z]
+  ).bind(this)
+
+  flipZ = ((x, y, z) ->
+    return [x, y, 1 - z]
+  ).bind(this)
+
+  rotateRightX = ((x, y, z) ->
+    return [x, 1-z, y]
+  ).bind(this)
+
+  rotateLeftX = ((x, y, z) ->
+    return [x, z, 1-y]
+  ).bind(this)
+
+  rotateRightY = ((x, y, z) ->
+    return [1-z, y, x]
+  ).bind(this)
+
+  rotateLeftY = ((x, y, z) ->
+    return [z, y, 1-x]
+  ).bind(this)
+
+  rotateRightZ = ((x, y, z) ->
+    return [1-y, x, z]
+  ).bind(this)
+
+  rotateLeftZ = ((x, y, z) ->
+    return [y, 1-x, z]
+  ).bind(this)
+
+
+  arraysEq = (a1, a2) ->
+    return JSON.stringify(a1) == JSON.stringify(a2)
+
+  getCornerArray = (coords...) ->
+    [x, y, z] = coords
+    a = [
+      grid.get(x, y, z)
+      grid.get(x, y, z + 1)
+      grid.get(x, y + 1, z)
+      grid.get(x, y + 1, z + 1)
+      grid.get(x + 1, y, z)
+      grid.get(x + 1, y, z + 1)
+      grid.get(x + 1, y + 1, z)
+      grid.get(x + 1, y + 1, z + 1)
+    ]
+    return (!!(i and i.data) for i in a)
+  # Array index help
+  # 0: 0, 0, 0
+  # 1: 0, 0, 1
+  # 2: 0, 1, 0
+  # 3: 0, 1, 1
+  # 4: 1, 0, 0
+  # 5: 1, 0, 1
+  # 6: 1, 1, 0
+  # 7: 1, 1, 1
+
+  definitions = [
+    [[true, true, true, true, true, true, true, true], []]
+    [[false, false, false, false, false, false, false, false], []]
+    [[true, false, false, false, false, false, false, false], [
+      [[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]
+    ]]
+    [[true, true, true, true, false, false, false, false], [
+      [[0.5, 0, 0], [0.5, 1, 0], [0.5, 1, 1]]
+      [[0.5, 0, 0], [0.5, 1, 1], [0.5, 0, 1]]
+    ]]
+    [[true, true, false, false, false, false, false, false], [
+      [[0.5, 0, 0], [0, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 0, 0], [0, 0.5, 0], [0, 0.5, 1]]
+    ]]
+    [[false, false, true, true, true, true, true, true], [
+      [[0.5, 0, 0], [0.5, 0, 1], [0, 0.5, 1]]
+      [[0.5, 0, 0], [0, 0.5, 1], [0, 0.5, 0]]
+    ]]
+    [[true, true, true, false, true, false, false, false], [
+      [[0.5, 1, 0], [1, 0, 0.5], [1, 0.5, 0]]
+      [[0.5, 1, 0], [0.5, 0, 1], [1, 0, 0.5]]
+      [[0.5, 1, 0], [0, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 1, 0], [0, 1, 0.5], [0, 0.5, 1]]
+    ]]
+    [[true, true, true, false, false, false, false, false], [
+     [[0.5, 0, 0], [0.5, 1, 0], [0.5, 0, 1]]
+     [[0.5, 0, 1], [0, 1, 0.5], [0, 0.5, 1]]
+     [[0.5, 0, 1], [0.5, 1, 0], [0, 1, 0.5]]
+    ]]
+    [[true, true, false, false, false, false, true, true], [
+      [[0, 0.5, 0], [0, 0.5, 1], [0.5, 1, 1]]
+      [[0, 0.5, 0], [0.5, 1, 1], [0.5, 1, 0]]
+      [[0.5, 0, 0], [1, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 0, 0], [1, 0.5, 0], [1, 0.5, 1]]
+    ]]
+    [[true, false, false, false, false, false, true, false], [
+      [[0, 0, 0.5], [1, 1, 0.5], [0.5, 1, 0]]
+      [[0, 0, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[0, 0, 0.5], [0.5, 0, 0], [1, 0.5, 0]]
+      [[0, 0, 0.5], [1, 0.5, 0], [1, 1, 0.5]]
+    ]]
+    [[false, false, false, true, false, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
+      [[0, 1, 0.5], [0.5, 0, 1], [0, 0.5, 1]]
+      [[0, 1, 0.5], [1, 0, 0.5], [0.5, 0, 1]]
+      [[0, 1, 0.5], [1, 0.5, 0], [1, 0, 0.5]]
+      [[0, 1, 0.5], [0.5, 1, 0], [1, 0.5, 0]]
+    ]]
+    [[true, false, false, false, false, false, false, true], [
+      [[0, 0, 0.5], [1, 0.5, 1], [0.5, 1, 1]]
+      [[0, 0, 0.5], [0.5, 1, 1], [0, 0.5, 0]]
+      [[0, 0.5, 0], [0.5, 1, 1], [1, 1, 0.5]]
+      [[0, 0.5, 0], [1, 1, 0.5], [0.5, 0, 0]]
+      [[0.5, 0, 0], [1, 1, 0.5], [1, 0.5, 1]]
+      [[0.5, 0, 0], [1, 0.5, 1], [0, 0, 0.5]]
+    ]]
+    [[true, true, false, false, false, false, true, false], [
+      [[0, 0.5, 0], [1, 1, 0.5], [0.5, 1, 0]]
+      [[0, 0.5, 0], [0, 0.5, 1], [1, 1, 0.5]]
+      [[0, 0.5, 1], [0.5, 0, 1], [1, 1, 0.5]]
+      [[0.5, 0, 1], [0.5, 0, 0], [1, 0.5, 0]]
+      [[0.5, 0, 1], [1, 0.5, 0], [1, 1, 0.5]]
+    ]]
+    [[true, false, false, false, false, true, true, true], [
+      [[1, 0.5, 0], [1, 0, 0.5], [0.5, 0, 0]]
+      [[0, 0.5, 0], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0, 0.5, 0], [0.5, 0, 1], [0.5, 1, 1]]
+      [[0, 0.5, 0], [0.5, 1, 1], [0.5, 1, 0]]
+    ]]
+    [[true, false, false, false, true, true, false, true], [
+      [[1, 0.5, 0], [0, 0.5, 0], [0, 0, 0.5]]
+      [[1, 0.5, 0], [0, 0, 0.5], [0.5, 0, 1]]
+      [[1, 0.5, 0], [0.5, 0, 1], [0.5, 1, 1]]
+      [[1, 0.5, 0], [0.5, 1, 1], [1, 1, 0.5]]
+    ]]
+    [[true, false, false, false, true, false, true, true], [
+      [[0, 0, 0.5], [1, 0, 0.5], [0, 0.5, 0]]
+      [[0, 0.5, 0], [1, 0, 0.5], [0.5, 1, 0]]
+      [[0.5, 1, 0], [1, 0, 0.5], [0.5, 1, 1]]
+      [[1, 0, 0.5], [1, 0.5, 1], [0.5, 1, 1]]
+    ]]
+    [[true, true, true, true, true, false, false, false], [
+      [[0.5, 1, 1], [0.5, 0, 1], [1, 0, 0.5]]
+      [[0.5, 1, 1], [1, 0, 0.5], [1, 0.5, 0]]
+      [[0.5, 1, 1], [1, 0.5, 0], [0.5, 1, 0]]
+    ]]
+    [[true, false, true, true, true, true, false, false], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 0.5, 0]]
+      [[0.5, 1, 1], [1, 0.5, 0], [0.5, 1, 0]]
+    ]]
+    [[true, false, false, true, false, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[1, 0, 0.5], [0.5, 0, 0], [1, 0.5, 0]]
+    ]]
+    [[true, false, false, true, false, true, true, true], [
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[1, 0.5, 0], [1, 0, 0.5], [0.5, 0, 0]]
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+    ]]
+    [[true, false, false, true, true, true, true, true], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+    ]]
+    [[true, false, true, true, true, true, false, true], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0.5, 1, 0], [1, 1, 0.5], [1, 0.5, 0]]
+    ]]
+    [[true, true, true, true, true, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
+    ]]
+  ]
+
+  getTransformedFace = (transform, face, offset) ->
+    [ox, oy, oz] = offset
+    newFace = []
+    for [x, y, z] in face
+      [nx, ny, nz] = transform(x, y, z)
+      newFace.push [nx * scale + ox, ny * scale + oy, nz * scale + oz]
+    return newFace
+
+  transformCorners = (transform, corners) ->
+    newCorners = []
+    for i in [0..corners.length - 1]
+      coord = getCoordFromIndex(i)
+      coord = transform(coord...)
+      index = getIndexFromCoord(coord...)
+      newCorners[index] = corners[i]
+    return newCorners
+
+  combineTransforms = (transforms...) ->
+    return (x, y, z) ->
+      for transform in transforms
+        [x, y, z] = transform(x, y, z)
+      return [x, y, z]
+
+  transforms = [
+    [rotateLeftX, rotateRightX]
+    [rotateRightX, rotateLeftX]
+    [rotateLeftY, rotateRightY]
+    [rotateRightY, rotateLeftY]
+    [rotateLeftZ, rotateRightZ]
+    [rotateRightZ, rotateLeftZ]
+  ]
+  newTransforms = (t for t in transforms)
+  for i in [0..transforms.length - 1]
+    [it, iu] = transforms[i]
+    newTransforms.push([it, iu])
+    for j in [0..transforms.length - 1]
+      [jt, ju] = transforms[j]
+      newTransforms.push [combineTransforms(it, jt), combineTransforms(ju, iu)]
+      for k in [0..transforms.length - 1]
+        [kt, ku] = transforms[k]
+        newTransforms.push [combineTransforms(it, jt, kt), combineTransforms(ju, iu, ku)]
+  transforms = newTransforms
+  # transforms = []
+  #transforms.push [combineTransforms(rotateRightX, rotateRightY, rotateRightY, rotateRightZ), combineTransforms(rotateLeftZ, rotateLeftY, rotateLeftY, rotateLeftX)]
+  #transforms.push [combineTransforms(rotateRightX, rotateRightY, rotateRightZ), combineTransforms(rotateLeftZ, rotateLeftY, rotateLeftX)]
+  # transforms.push [combineTransforms(rotateLeftX), combineTransforms(rotateRightX)]
+  #transforms.push [combineTransforms(rotateRightX, rotateRightX, rotateRightY), combineTransforms(rotateLeftX, rotateLeftX, rotateLeftY, rotateLeftY)]
+  # transforms.push [((x, y, z) -> [x, y, z]), ((x, y, z) -> [x, y, z])]
+  transforms.push [combineTransforms(rotateRightX, rotateRightY, rotateRightY)]
+  #transforms.push [((x, y, z) -> [1 - x, 1 - y, 1 - z]), ((x, y, z) -> [1 - x, 1 - y, 1 - z])]
+
+  arrayToNumber = (a) ->
+    # [true, false, true] -> 5
+    n = 0
+    for i in [0..a.length - 1]
+      if a[i]
+        e = a.length - i - 1
+        n += Math.pow(2, e)
+    return n
+  numberToArray = (n) ->
+    a = []
+    while n > 0
+      r = n % 2
+      v = false
+      if r > 0
+        n -= r
+        v = true
+      a.splice(0, 0, v)
+      n /= 2
+    while a.length < 8
+      a.splice(0, 0, false)
+    return a
+  console.log(arrayToNumber(numberToArray(5)))
+
+  # Precompute the transforms
+  table = {}
+  # for i in [0..255]
+  #   a = numberToArray(i)
+  c = 0
+  for [definition, polygons] in definitions
+    #n = arrayToNumber(definition)
+    for transform in transforms
+      corners = transformCorners(transform[0], definition)
+      n = arrayToNumber(corners)
+      if n not of table
+        c++
+        table[n] = [polygons, transform[0]]
+  for i in [0..255]
+    a = numberToArray(i)
+    if i not of table
+      console.log(a)
+
+  console.log(c + 'definitions')
+
+  identified = 0
+  remaining = 0
+  #geometry = new THREE.Geometry()
+  faceManager = new FaceManager()
+  console.log('generating geometry')
+  for x in [0..grid.size[0]-2]
+    console.log(x / grid.size[0] * 100)
+    for y in [0..grid.size[1]-2]
+      for z in [0..grid.size[2]-2]
+        originalCorners = getCornerArray(x, y, z)
+        polygons = null
+        transform = null
+        n = arrayToNumber(originalCorners)
+        if n of table
+          [polygons, transform] = table[n]
+        # for [definition, polys] in definitions
+        #   for [t, u] in transforms
+        #     corners = transformCorners(t, originalCorners)
+        #     if arraysEq(definition, corners)
+        #       polygons = polys
+        #       transform = u
+        #       break
+        #   if polygons?
+        #     break
+        if polygons?
+          identified++
+          #console.log('yeah')
+          #for polygon in polygons
+          #console.log(polygon)
+          for face in polygons
+            transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
+            #console.log(transformedFace)
+            faceManager.addFace(transformedFace...)
+        else
+          remaining++
+  console.log 'faces computed ' + identified + '/' + remaining
+  g = faceManager.generateGeometry()
+  console.log 'geometry generated'
+  return g
+
 getIndex = (position, size) ->
   return position.x + position.y * size.x + position.z * size.x * size.y
 
@@ -398,6 +721,15 @@ class ChunkGeometryManager
     return faces
 
   init: ->
+    geometry = generateMarchingCubesGeometry(@chunk, @cubeSize)
+    console.log(geometry.faces.length)
+    geometry.computeFaceNormals()
+    # console.log('done')
+    #material = new THREE.LineBasicMaterial({color: 0xff0000})})
+    material = new THREE.MeshPhongMaterial({color: 0xff0000})
+    mesh = new THREE.Mesh(geometry, material)
+    return mesh
+
     console.log("Generating geometry")
     #geometry = new THREE.Geometry()
     faceManager = new FaceManager()
