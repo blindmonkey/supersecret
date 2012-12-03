@@ -75,35 +75,118 @@ generateMarchingCubesGeometry = (grid, scale) ->
   # 6: 1, 1, 0
   # 7: 1, 1, 1
 
-  # 0.5, 1, 0
-  # 1, 0.5, 0
-  # 1, 0, 0.5
-  # 0.5, 0, 1
-  # 0, 0.5, 1
-  # 0, 1, 0.5
-
   definitions = [
+    [[true, true, true, true, true, true, true, true], []]
+    [[false, false, false, false, false, false, false, false], []]
     [[true, false, false, false, false, false, false, false], [
-      [[[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]]
+      [[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]
     ]]
     [[true, true, true, true, false, false, false, false], [
-      [[[0.5, 0, 0], [0.5, 1, 0], [0.5, 1, 1]],
-       [[0.5, 0, 0], [0.5, 1, 1], [0.5, 0, 1]]]
+      [[0.5, 0, 0], [0.5, 1, 0], [0.5, 1, 1]]
+      [[0.5, 0, 0], [0.5, 1, 1], [0.5, 0, 1]]
     ]]
     [[true, true, false, false, false, false, false, false], [
-      [[[0.5, 0, 0], [0, 0.5, 1], [0.5, 0, 1]],
-       [[0.5, 0, 0], [0, 0.5, 0], [0, 0.5, 1]]]
+      [[0.5, 0, 0], [0, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 0, 0], [0, 0.5, 0], [0, 0.5, 1]]
     ]]
     [[false, false, true, true, true, true, true, true], [
-      [[[0.5, 0, 0], [0.5, 0, 1], [0, 0.5, 1]],
-       [[0.5, 0, 0], [0, 0.5, 1], [0, 0.5, 0]]]
+      [[0.5, 0, 0], [0.5, 0, 1], [0, 0.5, 1]]
+      [[0.5, 0, 0], [0, 0.5, 1], [0, 0.5, 0]]
     ]]
     [[true, true, true, false, true, false, false, false], [
-      [[[0.5, 1, 0], [1, 0, 0.5], [1, 0.5, 0]]
-       [[0.5, 1, 0], [0.5, 0, 1], [1, 0, 0.5]]
-       [[0.5, 1, 0], [0, 0.5, 1], [0.5, 0, 1]]
-       [[0.5, 1, 0], [0, 1, 0.5], [0, 0.5, 1]]
-      ]
+      [[0.5, 1, 0], [1, 0, 0.5], [1, 0.5, 0]]
+      [[0.5, 1, 0], [0.5, 0, 1], [1, 0, 0.5]]
+      [[0.5, 1, 0], [0, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 1, 0], [0, 1, 0.5], [0, 0.5, 1]]
+    ]]
+    [[true, true, true, false, false, false, false, false], [
+     [[0.5, 0, 0], [0.5, 1, 0], [0.5, 0, 1]]
+     [[0.5, 0, 1], [0, 1, 0.5], [0, 0.5, 1]]
+     [[0.5, 0, 1], [0.5, 1, 0], [0, 1, 0.5]]
+    ]]
+    [[true, true, false, false, false, false, true, true], [
+      [[0, 0.5, 0], [0, 0.5, 1], [0.5, 1, 1]]
+      [[0, 0.5, 0], [0.5, 1, 1], [0.5, 1, 0]]
+      [[0.5, 0, 0], [1, 0.5, 1], [0.5, 0, 1]]
+      [[0.5, 0, 0], [1, 0.5, 0], [1, 0.5, 1]]
+    ]]
+    [[true, false, false, false, false, false, true, false], [
+      [[0, 0, 0.5], [1, 1, 0.5], [0.5, 1, 0]]
+      [[0, 0, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[0, 0, 0.5], [0.5, 0, 0], [1, 0.5, 0]]
+      [[0, 0, 0.5], [1, 0.5, 0], [1, 1, 0.5]]
+    ]]
+    [[false, false, false, true, false, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
+      [[0, 1, 0.5], [0.5, 0, 1], [0, 0.5, 1]]
+      [[0, 1, 0.5], [1, 0, 0.5], [0.5, 0, 1]]
+      [[0, 1, 0.5], [1, 0.5, 0], [1, 0, 0.5]]
+      [[0, 1, 0.5], [0.5, 1, 0], [1, 0.5, 0]]
+    ]]
+    [[true, false, false, false, false, false, false, true], [
+      [[0, 0, 0.5], [1, 0.5, 1], [0.5, 1, 1]]
+      [[0, 0, 0.5], [0.5, 1, 1], [0, 0.5, 0]]
+      [[0, 0.5, 0], [0.5, 1, 1], [1, 1, 0.5]]
+      [[0, 0.5, 0], [1, 1, 0.5], [0.5, 0, 0]]
+      [[0.5, 0, 0], [1, 1, 0.5], [1, 0.5, 1]]
+      [[0.5, 0, 0], [1, 0.5, 1], [0, 0, 0.5]]
+    ]]
+    [[true, true, false, false, false, false, true, false], [
+      [[0, 0.5, 0], [1, 1, 0.5], [0.5, 1, 0]]
+      [[0, 0.5, 0], [0, 0.5, 1], [1, 1, 0.5]]
+      [[0, 0.5, 1], [0.5, 0, 1], [1, 1, 0.5]]
+      [[0.5, 0, 1], [0.5, 0, 0], [1, 0.5, 0]]
+      [[0.5, 0, 1], [1, 0.5, 0], [1, 1, 0.5]]
+    ]]
+    [[true, false, false, false, false, true, true, true], [
+      [[1, 0.5, 0], [1, 0, 0.5], [0.5, 0, 0]]
+      [[0, 0.5, 0], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0, 0.5, 0], [0.5, 0, 1], [0.5, 1, 1]]
+      [[0, 0.5, 0], [0.5, 1, 1], [0.5, 1, 0]]
+    ]]
+    [[true, false, false, false, true, true, false, true], [
+      [[1, 0.5, 0], [0, 0.5, 0], [0, 0, 0.5]]
+      [[1, 0.5, 0], [0, 0, 0.5], [0.5, 0, 1]]
+      [[1, 0.5, 0], [0.5, 0, 1], [0.5, 1, 1]]
+      [[1, 0.5, 0], [0.5, 1, 1], [1, 1, 0.5]]
+    ]]
+    [[true, false, false, false, true, false, true, true], [
+      [[0, 0, 0.5], [1, 0, 0.5], [0, 0.5, 0]]
+      [[0, 0.5, 0], [1, 0, 0.5], [0.5, 1, 0]]
+      [[0.5, 1, 0], [1, 0, 0.5], [0.5, 1, 1]]
+      [[1, 0, 0.5], [1, 0.5, 1], [0.5, 1, 1]]
+    ]]
+    [[true, true, true, true, true, false, false, false], [
+      [[0.5, 1, 1], [0.5, 0, 1], [1, 0, 0.5]]
+      [[0.5, 1, 1], [1, 0, 0.5], [1, 0.5, 0]]
+      [[0.5, 1, 1], [1, 0.5, 0], [0.5, 1, 0]]
+    ]]
+    [[true, false, true, true, true, true, false, false], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 0.5, 0]]
+      [[0.5, 1, 1], [1, 0.5, 0], [0.5, 1, 0]]
+    ]]
+    [[true, false, false, true, false, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[1, 0, 0.5], [0.5, 0, 0], [1, 0.5, 0]]
+    ]]
+    [[true, false, false, true, false, true, true, true], [
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+      [[1, 0.5, 0], [1, 0, 0.5], [0.5, 0, 0]]
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+    ]]
+    [[true, false, false, true, true, true, true, true], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0, 1, 0.5], [0.5, 1, 0], [0, 0.5, 0]]
+    ]]
+    [[true, false, true, true, true, true, false, true], [
+      [[0, 0.5, 1], [0, 0, 0.5], [0.5, 0, 1]]
+      [[0.5, 1, 0], [1, 1, 0.5], [1, 0.5, 0]]
+    ]]
+    [[true, true, true, true, true, true, true, false], [
+      [[0.5, 1, 1], [1, 0.5, 1], [1, 1, 0.5]]
     ]]
   ]
 
@@ -145,9 +228,9 @@ generateMarchingCubesGeometry = (grid, scale) ->
     for j in [0..transforms.length - 1]
       [jt, ju] = transforms[j]
       newTransforms.push [combineTransforms(it, jt), combineTransforms(ju, iu)]
-      # for k in [0..transforms.length - 1]
-      #   [kt, ku] = transforms[k]
-      #   newTransforms.push [combineTransforms(it, jt, kt), combineTransforms(ju, iu, ku)]
+      for k in [0..transforms.length - 1]
+        [kt, ku] = transforms[k]
+        newTransforms.push [combineTransforms(it, jt, kt), combineTransforms(ju, iu, ku)]
   transforms = newTransforms
   # transforms = []
   #transforms.push [combineTransforms(rotateRightX, rotateRightY, rotateRightY, rotateRightZ), combineTransforms(rotateLeftZ, rotateLeftY, rotateLeftY, rotateLeftX)]
@@ -176,6 +259,8 @@ generateMarchingCubesGeometry = (grid, scale) ->
         v = true
       a.splice(0, 0, v)
       n /= 2
+    while a.length < 8
+      a.splice(0, 0, false)
     return a
   console.log(arrayToNumber(numberToArray(5)))
 
@@ -189,16 +274,18 @@ generateMarchingCubesGeometry = (grid, scale) ->
     for transform in transforms
       corners = transformCorners(transform[0], definition)
       n = arrayToNumber(corners)
-      table[n] = [polygons, transform[0]]
-      c++
+      if n not of table
+        c++
+        table[n] = [polygons, transform[0]]
+  for i in [0..255]
+    a = numberToArray(i)
+    if i not of table
+      console.log(a)
+
   console.log(c + 'definitions')
 
-
-
-
-
-
-
+  identified = 0
+  remaining = 0
   #geometry = new THREE.Geometry()
   faceManager = new FaceManager()
   console.log('generating geometry')
@@ -222,14 +309,17 @@ generateMarchingCubesGeometry = (grid, scale) ->
         #   if polygons?
         #     break
         if polygons?
+          identified++
           #console.log('yeah')
-          for polygon in polygons
-            #console.log(polygon)
-            for face in polygon
-              transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
-              #console.log(transformedFace)
-              faceManager.addFace(transformedFace...)
-  console.log 'faces computed'
+          #for polygon in polygons
+          #console.log(polygon)
+          for face in polygons
+            transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
+            #console.log(transformedFace)
+            faceManager.addFace(transformedFace...)
+        else
+          remaining++
+  console.log 'faces computed ' + identified + '/' + remaining
   g = faceManager.generateGeometry()
   console.log 'geometry generated'
   return g
@@ -245,11 +335,11 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @viewAngle = parseFloat(params.viewAngle) or 90
 
     @noise = new SimplexNoise()
-    if true
+    if false
       @grid = new Grid(3, [6, 6, 6])
       for x in [0..@grid.size[0] - 1]
         for y in [0..@grid.size[1] - 1]
-          for z in [0..@grid.size[1] - 1]
+          for z in [0..@grid.size[2] - 1]
             @grid.set(false, x, y, z)
       @grid.set(true, 1, 1, 1)
       @grid.set(true, 2, 1, 1)
@@ -260,6 +350,40 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @grid.set(true, 3, 4, 3)
       @grid.set(true, 3, 3, 4)
     else if false
+      @grid = new Grid(3, [4, 4, 4])
+      for x in [0..@grid.size[0] - 1]
+        for y in [0..@grid.size[1] - 1]
+          for z in [0..@grid.size[2] - 1]
+            @grid.set(false, x, y, z)
+      @grid.set(true, 1, 1, 1)
+      @grid.set(true, 1, 2, 1)
+      @grid.set(true, 1, 2, 2)
+      @grid.set(true, 2, 1, 1)
+      @grid.set(true, 2, 2, 2)
+      @grid.set(true, 2, 1, 2)
+    else if false
+      @grid = new Grid(3, [6, 6, 6])
+      for x in [0..@grid.size[0] - 1]
+        for y in [0..@grid.size[1] - 1]
+          for z in [0..@grid.size[2] - 1]
+            @grid.set(false, x, y, z)
+      @grid.set(true, 1, 1, 1)
+      @grid.set(true, 1, 1, 2)
+      @grid.set(true, 1, 2, 1)
+      @grid.set(true, 1, 2, 2)
+      @grid.set(true, 2, 1, 1)
+      @grid.set(true, 2, 1, 2)
+      @grid.set(true, 2, 2, 1)
+      @grid.set(true, 2, 2, 2)
+      @grid.set(true, 1, 3, 3)
+      @grid.set(true, 1, 3, 4)
+      @grid.set(true, 1, 4, 3)
+      @grid.set(true, 1, 4, 4)
+      @grid.set(true, 2, 3, 3)
+      @grid.set(true, 2, 3, 4)
+      @grid.set(true, 2, 4, 3)
+      @grid.set(true, 2, 4, 4)
+    else if true
       @grid = new Grid(3, [32, 32, 32])
       for x in [0..@grid.size[0] - 1]
         for y in [0..@grid.size[1] - 1]
@@ -267,11 +391,11 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
             n = @noise.noise3D(x / 64, y / 64, z / 64) + @noise.noise3D(x / 32, y / 32, z / 32) / 2 + @noise.noise3D(x / 16, y / 16, z / 16) / 4
             @grid.set(n > 0, x, y, z)
       console.log('generation complete')
-    else if true
+    else if false
       @grid = new Grid(3, [5, 5, 5])
       for x in [0..@grid.size[0] - 1]
         for y in [0..@grid.size[1] - 1]
-          for z in [0..@grid.size[1] - 1]
+          for z in [0..@grid.size[2] - 1]
             @grid.set(false, x, y, z)
       f = ((coords...) ->
         @grid.set(true, coords...)
@@ -324,7 +448,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     #     m.position.y = coords[1]
     #     m.position.z = coords[2]
     # ).bind(this))
-    if true
+    if @grid.size[0] < 10
         @grid.forEach(((coords...) ->
           cell = @grid.get(coords...)
           if cell
@@ -339,11 +463,12 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @scene.add new THREE.Mesh(
       geometry,
       #new THREE.MeshBasicMaterial({color: 0x00ff00})
-    new THREE.MeshLambertMaterial({color: 0x00ff00})
+    new THREE.MeshLambertMaterial({color: 0x00ff00, ambient: 0x00ff00})
     )
     console.log('complete')
 
   initLights: ->
+    @scene.add new THREE.AmbientLight(0x505050)
     light = new THREE.DirectionalLight(0xffffff, .6)
     light.position.x = 1
     light.position.y = 1
