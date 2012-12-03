@@ -38,6 +38,35 @@ lib.load('events', ->
           return false if coord >= size or coord < 0
       return true
 
+    forEachInRange: (f, ranges...) ->
+      if ranges.length != @dimensions
+        throw "Invalid number of ranges"
+      forEachRange = ((dimIndex, dimList) ->
+        range = null
+        if ranges[dimIndex] != Infinity
+          range = ranges[dimIndex]
+        else if @size[dimIndex] != Infinity
+          range = @size[dimIndex]
+        else
+          range = @limits[dimIndex]
+        if typeof range == 'number'
+          range =
+            min: 0
+            max: range - 1
+        else if range instanceof Array
+          range =
+            min: range[0]
+            max: range[1]
+        for c in [range.min..range.max]
+          if dimIndex < @dimensions - 1
+            forEachRange(dimIndex + 1, dimList.concat([c]))
+          else
+            f(dimList.concat([c])...)
+      ).bind(this)
+      forEachRange(0, [])
+
+
+
     updateLimits: (coords...) ->
       for c in [0..coords.length - 1]
         coord = coords[c]

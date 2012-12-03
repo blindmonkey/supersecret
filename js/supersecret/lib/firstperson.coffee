@@ -5,6 +5,7 @@ lib.export('FirstPerson', class FirstPerson
     @camera = camera
     @rotation = 0
     @pitch = 0
+    @tilt = 0
     @initialized = false
 
     @initControls()
@@ -16,6 +17,8 @@ lib.export('FirstPerson', class FirstPerson
       DOWN: [40, 83]
       RISE: [69]
       LOWER: [81]
+      TILTRIGHT: [84]
+      TILTLEFT: [82]
     }
     @downKeys = {}
 
@@ -69,6 +72,10 @@ lib.export('FirstPerson', class FirstPerson
             @strafeLeft(delta / 10)
           else if keyset == 'RIGHT'
             @strafeRight(delta / 10)
+          else if keyset == 'TILTRIGHT'
+            @tilt += .1
+          else if keyset == 'TILTLEFT'
+            @tilt -= .1
 
   rotateY: (degrees) ->
     radians = degrees * Math.PI / 180
@@ -86,12 +93,18 @@ lib.export('FirstPerson', class FirstPerson
     # v.x = @camera.position.x + Math.cos(@rotation)
     # v.y = @camera.position.y - Math.sin(@pitch)
     # v.z = @camera.position.z + Math.sin(@rotation)
-    v[hAxis1] = @camera.position[hAxis1] + Math.cos(@rotation)
+    cosPitch = Math.cos(@pitch)
+    if cosPitch < 0
+      cosPitch = 0.01
+      @pitch = Math.acos(cosPitch)
+    v[hAxis1] = @camera.position[hAxis1] + Math.cos(@rotation) * cosPitch
     v.y = @camera.position.y - Math.sin(@pitch)
-    v[hAxis2] = @camera.position[hAxis2] + Math.sin(@rotation)
+    v[hAxis2] = @camera.position[hAxis2] + Math.sin(@rotation) * cosPitch
     #v.normalize()
+    #console.log(@pitch)
 
     @camera.lookAt(v)
+    @ca
 
   rotatePitch: (degrees) ->
     radians = degrees * Math.PI / 180

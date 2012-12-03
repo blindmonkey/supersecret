@@ -1,3 +1,6 @@
+lib.load('firstperson', 'facemanager', ->
+  supersecret.Game.loaded = true)
+
 getIndex = (position, size) ->
   return position.x + position.y * size.x + position.z * size.x * size.y
 
@@ -397,7 +400,7 @@ class ChunkGeometryManager
   init: ->
     console.log("Generating geometry")
     #geometry = new THREE.Geometry()
-    faceManager = new supersecret.FaceManager()
+    faceManager = new FaceManager()
 
     meshes = []
     #console.log('geo init')
@@ -423,7 +426,7 @@ class ChunkGeometryManager
     # console.log("Geometry generated. Computing face normals for " + geometry.faces.length + " faces")
     # if geometry.faces.length == 0
     #   return undefined
-    geometry = faceManager.createGeometry()
+    geometry = faceManager.generateGeometry()
     geometry.computeFaceNormals()
     # console.log('done')
     #material = new THREE.LineBasicMaterial({color: 0xff0000})})
@@ -565,6 +568,7 @@ class Statistician
 
 
 supersecret.Game = class VoxelGame extends supersecret.BaseGame
+  @loaded: false
   constructor: (container, width, height, opt_scene, opt_camera) ->
     console.log 'Generating chunk...'
     noise = new SimplexNoise()
@@ -655,7 +659,7 @@ supersecret.Game = class VoxelGame extends supersecret.BaseGame
 
     @projector = new THREE.Projector()
 
-    @person = new supersecret.FirstPerson(container, @camera)
+    @person = new FirstPerson(container, @camera)
     @person.updateCamera()
     @mouse = null
 
