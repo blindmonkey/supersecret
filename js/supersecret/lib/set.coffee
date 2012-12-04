@@ -25,11 +25,31 @@ lib.export('Set', class Set
     for item of @items
       f(@items[item])
 
+  forEachPop: (f) ->
+    for item of @items
+      f(@items[item])
+      delete @items[item]
+      @length--
+
   add: (item) ->
     id = generateId(item)
     if id not of @items
       @items[id] = JSON.parse(JSON.stringify(item))
       @length++
+
+  peek: ->
+    if @length == 0
+      throw 'Cannot peek at an empty set'
+    for key of @items
+      return @items[key]
+
+  pop: ->
+    if @length == 0
+      throw 'Cannot pop from an empty set'
+    for key of @items
+      item = @items[key]
+      @remove(item)
+      return item
 
   contains: (item) ->
     id = generateId(item)

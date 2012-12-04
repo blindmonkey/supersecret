@@ -1,10 +1,32 @@
+lib.load('set', ->)
+
 lib.export('FaceManager', class supersecret.FaceManager
-  constructor: ->
+  constructor: (faceBufferCount) ->
+    @faceBufferCount = faceBufferCount
     @faces = []
     @vectors = []
     @vectorIndex = {}
     @faceIndex = {}
-    @geometry = new THREE.Geometry()
+    @facePool = null
+    if faceBufferCount
+      @nullFace = new THREE.Face3(0, 0, 0)
+      @mesh = new THREE.Mesh()
+      @regenerateGeometry()
+
+  regenerateGeometry: ->
+    newGeometry = new THREE.Geometry()
+    newGeometry.dynamic = true
+    @facePool = new Set()
+    offset = if @geometry then @geometry.faces.length else 0
+    if @geometry
+      newGeometry.vertices = @geometry.vertices
+      newGeometry.faces = @geometry.faces
+    for i in [1..@faceBufferCount]
+      newGeometry.faces.push @nullFace
+      @faces.push null
+      @facePool.add(i - 1 + offset)
+    @geometry = newGeometry
+
 
   getVectorId: (v) ->
     if v instanceof Array
@@ -14,6 +36,7 @@ lib.export('FaceManager', class supersecret.FaceManager
     return v.x + '/' + v.y + '/' + v.z
 
   updateFaceIndex: ->
+    console.log('Regenerating face index')
     if @geometry
       @geometry.faces = []
     for faceIndex of @faces
@@ -24,18 +47,12 @@ lib.export('FaceManager', class supersecret.FaceManager
         @geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
 
   removeFaces: (faces...) ->
-    faceList = []
     for face in faces
-      faceList.push [face, @faceIndex[@getFaceId(face)]]
-    faceList.sort((a, b) -> b[1] > a[1])
-    for [face, index] in faceList
-      @faces.splice(index, 1)
-      if @geometry
-        @geometry.faces.splice(index, 1)
-
-
-
-
+      faceId = @getFaceId(face)
+      index = @faceIndex[faceId]
+      delete @faceIndex[faceId]
+      @faces[index] = null
+      @geometry.faces[index] = @nullFace
 
   getFaceId: (f) ->
     va = @getVectorId(f.a)
@@ -78,8 +95,15 @@ lib.export('FaceManager', class supersecret.FaceManager
     }
     faceId = @getFaceId(face)
     if faceId not of @faceIndex
-      @faces.push @processFace(face)
-      @faceIndex[faceId] = face
+      if @facePool.length == 0
+        #console.log("REGENERATING!!!")
+        @regenerateGeometry()
+      emptyFaceIndex = @facePool.pop()
+      @faces[emptyFaceIndex] = @processFace(face)
+      @faceIndex[faceId] = emptyFaceIndex
+      @geometry.faces[emptyFaceIndex] = new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+      @geometry.verticesNeedUpdate = true
+      @geometry.elementsNeedUpdate = true
     if doubleSided
       @addFace(a, c, b)
 
@@ -87,6 +111,7 @@ lib.export('FaceManager', class supersecret.FaceManager
     @addFace(face.a, face.b, face.c) for face in faces
 
   generateGeometry: ->
+    return @geometry
     @geometry = new THREE.Geometry()
     @geometry.dynamic = true
     for vector in @vectors

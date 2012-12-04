@@ -213,42 +213,52 @@ getCornerArray = (getter, coords...) ->
 
 
 lib.export('MarchingCubes', class MarchingCubes
-  constructor: ->
+  constructor: (scale) ->
     if not table?
       initializeTable()
     dirty = true
+    @scale = scale
     @identified = 0
     @remaning = 0
 
+  getGeometry: ->
+    return @faceManager.geometry
+
   updateCube: (getter, x, y, z) ->
     originalCorners = getCornerArray(getter, x, y, z)
-    doNext = false
     for c in originalCorners
       if c is undefined
         a = @grid.get(x, y, z)
         if a
+          console.log("Removing all faces because this cube is undefined")
           faces = ({a:f[0], b:f[1], c:f[2]} for f in a)
           @faceManager.removeFaces(faces...)
         return
+
     polygons = null
     transform = null
     n = arrayToNumber(originalCorners)
     if n of table
       [polygons, transform] = table[n]
+
     if polygons?
       @identified++
       a = @grid.get(x, y, z)
       if a
         faces = ({a:f[0], b:f[1], c:f[2]} for f in a)
+        #console.log('Removing faces', faces)
         @faceManager.removeFaces(faces...)
       a = []
       for face in polygons
         transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
         a.push(transformedFace)
+        #console.log('Adding new face', transformedFace)
         @faceManager.addFace(transformedFace...)
       @grid.set(a, x, y, z)
     else
       @remaining++
+
+    return @faceManager.geometry
 
   getTransformedFace: (transform, face, offset) ->
     [ox, oy, oz] = offset
@@ -258,15 +268,14 @@ lib.export('MarchingCubes', class MarchingCubes
       newFace.push [nx * @scale + ox, ny * @scale + oy, nz * @scale + oz]
     return newFace
 
-  generateGeometry: (getter, scale, ranges...) ->
+  generateGeometry: (getter, ranges...) ->
+    console.log(ranges)
     identified = 0
     remaining = 0
-    
-    @scale = scale
 
     @grid = new Grid(3, ranges)
     #geometry = new THREE.Geometry()
-    @faceManager = new FaceManager()
+    @faceManager = new FaceManager(50)
     console.log('generating geometry')
     for x in [ranges[0][0]..ranges[0][1]]
       #console.log(x / grid.size[0] * 100)
