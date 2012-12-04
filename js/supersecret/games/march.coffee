@@ -56,37 +56,38 @@ class World
         scale: 1 / 256
         multiplier: 1 / 4
         }])
+    @lod = new THREE.LOD()
+    @scene.add @lod
 
     DEBUG.expose('world', this)
 
   generateChunk: (cx, cy, cz) ->
-    chunk = new Grid(3, @chunkSize)
-    for x in [0..@chunkSize[0]-1]
-      for y in [0..@chunkSize[1]-1]
-        for z in [0..@chunkSize[2]-1]
-          n = @noise.noise3D(
-            (x + cx * @chunkSize[0]) / @scale[0],
-            (y + cy * @chunkSize[1]) / @scale[1],
-            (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
-          chunk.set(n > 0, x, y, z)
-
     leftNeighbor = @chunks.exists(cx - 1, cy, cz)
     rightNeighbor = @chunks.exists(cx + 1, cy, cz)
     upNeighbor = @chunks.exists(cx, cy + 1, cz)
     downNeighbor = @chunks.exists(cx, cy - 1, cz)
     frontNeighbor = @chunks.exists(cx, cy, cz+1)
     backNeighbor = @chunks.exists(cx, cy, cz-1)
-    if leftNeighbor or rightNeighbor
-      for y in [0..@chunkSize[1]-1]
-        for z in [0..@chunkSize[2]-1]
-          @dirty.add(@getAbsolutePosition(@chunkSize[0] - 1, y, z, cx - 1, cy, cz)) if leftNeighbor
-          @dirty.add(@getAbsolutePosition(0, y, z, cx + 1, cy, cz)) if rightNeighbor
-    if frontNeighbor or backNeighbor
-      for y in [0..@chunkSize[1]-1]
-        for z in [0..@chunkSize[2]-1]
-          @dirty.add(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1)) if frontNeighbor
-          @dirty.add(@getAbsolutePosition(x, y, @chunkSize[2] - 1, cx, cy, cz - 1)) if backNeighbor
-    #chunk.set(true, 5, 5, 5)
+    chunk = new Grid(3, @chunkSize)
+    mx = @chunkSize[0]-1
+    my = @chunkSize[1]-1
+    mz = @chunkSize[2]-1
+    for x in [0..mx]
+      for y in [0..my]
+        for z in [0..mz]
+          n = @noise.noise3D(
+            (x + cx * @chunkSize[0]) / @scale[0],
+            (y + cy * @chunkSize[1]) / @scale[1],
+            (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+          chunk.set(n > 0, x, y, z)
+          if x == 0 and leftNeighbor
+            @dirty.add(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
+          else if x == mx and rightNeighbor
+            @dirty.add(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
+          if z == 0 and backNeighbor
+            @dirty.add(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
+          else if z == mz and frontNeighbor
+            @dirty.add(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
     @chunks.set(chunk, cx, cy, cz)
 
   generateChunkGeometry: (cx, cy, cz) ->
@@ -109,14 +110,14 @@ class World
 
     geometry.computeFaceNormals()
     console.log('finished adding mesh')
-    @scene.add geo.mesh = @createMesh(geometry, cx, cy, cz)
+    @lod.add geo.mesh = @createMesh(geometry, cx, cy, cz)
     console.log(geo.mesh.position.x, geo.mesh.position.y, geo.mesh.position.z)
 
   createMesh: (geometry, cx, cy, cz) ->
     mesh = new THREE.Mesh(
       geometry,
-      #new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
-      new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x00ff00})
+      new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
+      #new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x00ff00})
     )
     mesh.position.x = cx * @cubeSize * (@chunkSize[0])
     mesh.position.y = cy * @cubeSize * (@chunkSize[1])
@@ -160,6 +161,9 @@ class World
       z: z
     }
 
+  update: (delta) ->
+    @updateGeometry()
+
   updateGeometry: ->
     return if @dirty.length == 0
     console.log('in updateGeometry', @dirty.length)
@@ -196,9 +200,9 @@ class World
       geo = @geometry.get(cx, cy, cz)
       g = geo.cubes.getGeometry()
       if g != geo.mesh.geometry
-        @scene.remove geo.mesh
+        @lod.remove geo.mesh
         console.log( 'updating geometry')
-        @scene.add geo.mesh = @createMesh(g, cx, cy, cz)
+        @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
       console.log('computing face normals...')
       g.computeFaceNormals()
       g.normalsNeedUpdate = true
@@ -295,8 +299,6 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         when 79 # O
           @selectedChunk.y += 1
         when 71 # G
-          @set(true, @selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
-        when 82 # R
           @world.generateChunk(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
           @world.generateChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
       @selectedMesh.position.x = @selectedChunk.x * @cubeSize * @chunkSize[0]
@@ -339,7 +341,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @scene.add light
 
   render: (delta) ->
-    if @world.dirty.length > 0
-      @world.updateGeometry()
+    @world.update(delta)
+    @world.lod.update(@camera)
     @person.update(delta)
     @renderer.renderer.render(@scene, @camera)
