@@ -607,7 +607,6 @@ class MarchingCubes
     return g
 
 
-
 class NoiseGenerator
   constructor: (noise, description) ->
     @noise = noise
@@ -639,6 +638,64 @@ class NoiseGenerator
       multiplier = layer.multiplier or 1
       s += @noise.noise3D(x * scale, y * scale, z * scale, w * scale) * multiplier - offset
     return s
+
+
+class World
+  constructor: (chunkSize, cubeSize, scene) ->
+    @chunkSize = chunkSize
+    @cubeSize = cubeSize
+    @scene = scene
+    @dirty = true
+    @geometry = new Grid(3, [Infinity, Infinity, Infinity])
+    @chunks = new Grid(3, [Infinity, Infinity, Infinity])
+    @seaLevel = @chunkSize[1] / 2
+    @scale = [2, 1, 2]
+    @noise = new NoiseGenerator(new SimplexNoise(), [{
+        scale: 1 / 32
+      }, {
+        scale: 1 / 64
+        multiplier: 1 / 2
+      }, {
+        scale: 1 / 128
+        multiplier: 1 / 3
+      }, {
+        scale: 1 / 256
+        multiplier: 1 / 4
+        }])
+
+  generateChunk: (cx, cy, cz) ->
+    chunk = new Grid(3, @chunkSize)
+    for x in [0..@chunkSize[0]-1]
+      for y in [0..@chunkSize[1]-1]
+        for z in [0..@chunkSize[2]-1]
+          n = @noise.noise3D(
+            (x + cx * @chunkSize[0]) / @scale[0],
+            (y + cy * @chunkSize[1]) / @scale[1],
+            (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+          chunk.set(n > 0, x, y, z)
+    @chunks.set(chunk, cx, cy, cz)
+
+  get: (x, y, z) ->
+    cx = Math.floor(x / @chunkSize[0])
+    cy = Math.floor(y / @chunkSize[1])
+    cz = Math.floor(z / @chunkSize[2])
+    chunk = @chunks.get(cx, cy, cz)
+    if chunk is undefined
+      return undefined
+    if cx >= 0
+      x -= cx
+    else
+      x += @chunkSize[0] * -cx
+    if cy >= 0
+      y -= cy
+    else
+      y += @chunkSize[1] * -cy
+    if cz >= 0
+      z -= cz
+    else
+      z += @chunkSize[2] * -cz
+    return chunk.get(x, y, z)
+
 
 supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
@@ -678,7 +735,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
             n = @noise.noise3D(
               (x + cx * @chunkSize[0]) / horizontalScale,
               (y + cy * @chunkSize[1]) / verticalScale,
-              (z + cz * @chunkSize[2]) / horizontalScale) - (y + cy * @chunkSize[1] - seaLevel) / @chunkSize[1]
+              (z + cz * @chunkSize[2]) / horizontalScale) - (y + cy * @chunkSize[1] - seaLevel) / 32
             chunk.set(n > 0, x, y, z)
       data =
         chunk: chunk
@@ -686,6 +743,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @chunks.set(data, cx, cy, cz)
     ).bind(this)
     generateChunk(0, 0, 0)
+    generateChunk(1, 0, 0)
+    generateChunk(1, 0, 1)
+    generateChunk(0, 0, 1)
     console.log('generation complete')
 
     @selectedChunk =
@@ -736,6 +796,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     #geometry = generateMarchingCubesGeometry(@grid)
     generateChunkGeometry = ((cx, cy, cz) ->
 
+      chunk = null
       getFromAny = ((x, y, z) ->
         actualChunk = chunk
         [ncx, ncy, ncz] = [cx, cy, cz]
@@ -760,14 +821,14 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         if not @chunks.exists(ncx, ncy, ncz)
           return undefined
         if ncx != cx or ncy != cy or ncz != cz
-          actualChunk = @chunks.get(ncx, ncy, ncz)
+          actualChunk = @chunks.get(ncx, ncy, ncz).chunk
         return actualChunk.get(x, y, z)
       ).bind(this)
 
       cubes = new MarchingCubes()
-      chunk = @chunks.get(cx, cy, cz)
-      geometry = cubes.generateGeometry(getFromAny, @cubeSize, [-1, chunk.size[0]-1], [-1, chunk.size[1]-1], [-1, chunk.size[2]-1])
-      geometry = cubes.generateGeometry(getFromAny, @cubeSize, [-1, chunk.size[0]-1], [-1, chunk.size[1]-1], [-1, chunk.size[2]-1])
+      chunk = @chunks.get(cx, cy, cz).chunk
+      geometry = cubes.generateGeometry(getFromAny, @cubeSize, [-1, @chunkSize[0]-1], [-1, @chunkSize[1]-1], [-1, @chunkSize[2]-1])
+      #geometry = cubes.generateGeometry(getFromAny, @cubeSize, [-1, @chunkSize[0]-1], [-1, @chunkSize[1]-1], [-1, @chunkSize[2]-1])
       console.log('computing face normals')
       geometry.computeFaceNormals()
       console.log('finished adding mesh')
