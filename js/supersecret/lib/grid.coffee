@@ -32,7 +32,9 @@ lib.load('events', ->
         coord = coords[c]
         size = @size[c]
         continue if size == Infinity
-        if size instanceof Object
+        if size instanceof Array
+          return false if coord < size[0] or coord > size[1]
+        else if size instanceof Object
           return false if coord < size.min or coord > size.max
         else
           return false if coord >= size or coord < 0

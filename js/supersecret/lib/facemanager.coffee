@@ -4,6 +4,7 @@ lib.export('FaceManager', class supersecret.FaceManager
     @vectors = []
     @vectorIndex = {}
     @faceIndex = {}
+    @geometry = new THREE.Geometry()
 
   getVectorId: (v) ->
     if v instanceof Array
@@ -11,6 +12,30 @@ lib.export('FaceManager', class supersecret.FaceManager
         throw "invalid vector"
       return v.join('/')
     return v.x + '/' + v.y + '/' + v.z
+
+  updateFaceIndex: ->
+    if @geometry
+      @geometry.faces = []
+    for faceIndex of @faces
+      face = @faces[faceIndex]
+      faceId = @getFaceId(face)
+      @faceIndex[faceId] = @processFace(face)
+      if @geometry
+        @geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+
+  removeFaces: (faces...) ->
+    faceList = []
+    for face in faces
+      faceList.push [face, @faceIndex[@getFaceId(face)]]
+    faceList.sort((a, b) -> b[1] > a[1])
+    for [face, index] in faceList
+      @faces.splice(index, 1)
+      if @geometry
+        @geometry.faces.splice(index, 1)
+
+
+
+
 
   getFaceId: (f) ->
     va = @getVectorId(f.a)
@@ -25,7 +50,14 @@ lib.export('FaceManager', class supersecret.FaceManager
     if vectorId not of @vectorIndex
       @vectorIndex[vectorId] = @vectors.length
       @vectors.push(v)
+      if @geometry
+        @geometry.vertices.push v
+        @geometry.verticesNeedUpdate = true
     return @vectorIndex[vectorId]
+
+  hasVector: (v) ->
+    vectorId = @getVectorId(v)
+    return vectorId of @vectorIndex
 
   clearAndRecreateVectorIndex: ->
     @processFace(face) for face in @faces
@@ -55,10 +87,11 @@ lib.export('FaceManager', class supersecret.FaceManager
     @addFace(face.a, face.b, face.c) for face in faces
 
   generateGeometry: ->
-    geometry = new THREE.Geometry()
+    @geometry = new THREE.Geometry()
+    @geometry.dynamic = true
     for vector in @vectors
-      geometry.vertices.push vector
+      @geometry.vertices.push vector
     for face in @faces
-      geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
-    return geometry
+      @geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+    return @geometry
 )

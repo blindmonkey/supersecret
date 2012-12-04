@@ -216,11 +216,43 @@ lib.export('MarchingCubes', class MarchingCubes
   constructor: ->
     if not table?
       initializeTable()
+    dirty = true
+    @identified = 0
+    @remaning = 0
+
+  updateCube: (getter, x, y, z) ->
+    originalCorners = getCornerArray(getter, x, y, z)
+    doNext = false
+    for c in originalCorners
+      if c is undefined
+        a = @grid.get(x, y, z)
+        if a
+          faces = ({a:f[0], b:f[1], c:f[2]} for f in a)
+          @faceManager.removeFaces(faces...)
+        return
+    polygons = null
+    transform = null
+    n = arrayToNumber(originalCorners)
+    if n of table
+      [polygons, transform] = table[n]
+    if polygons?
+      @identified++
+      a = @grid.get(x, y, z)
+      if a
+        faces = ({a:f[0], b:f[1], c:f[2]} for f in a)
+        @faceManager.removeFaces(faces...)
+      a = []
+      for face in polygons
+        transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
+        a.push(transformedFace)
+        @faceManager.addFace(transformedFace...)
+      @grid.set(a, x, y, z)
+    else
+      @remaining++
 
   generateGeometry: (getter, scale, ranges...) ->
     identified = 0
     remaining = 0
-
 
     getTransformedFace = (transform, face, offset) ->
       [ox, oy, oz] = offset
@@ -230,32 +262,16 @@ lib.export('MarchingCubes', class MarchingCubes
         newFace.push [nx * scale + ox, ny * scale + oy, nz * scale + oz]
       return newFace
 
+    @grid = new Grid(3, ranges)
     #geometry = new THREE.Geometry()
-    faceManager = new FaceManager()
+    @faceManager = new FaceManager()
     console.log('generating geometry')
     for x in [ranges[0][0]..ranges[0][1]]
       #console.log(x / grid.size[0] * 100)
       for y in [ranges[1][0]..ranges[1][1]]
         for z in [ranges[2][0]..ranges[2][1]]
-          originalCorners = getCornerArray(getter, x, y, z)
-          doNext = false
-          for c in originalCorners
-            if c is undefined
-              doNext = true
-              break
-          continue if doNext
-          polygons = null
-          transform = null
-          n = arrayToNumber(originalCorners)
-          if n of table
-            [polygons, transform] = table[n]
-          if polygons?
-            identified++
-            for face in polygons
-              transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
-              faceManager.addFace(transformedFace...)
-          else
-            remaining++
+          @updateCube(getter, x, y, z)
+
     console.log 'faces computed ' + identified + '/' + remaining
     g = faceManager.generateGeometry()
     console.log 'geometry generated'
