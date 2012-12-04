@@ -1,5 +1,11 @@
-lib.load('firstperson', 'grid', 'facemanager', 'marchingcubes', 'set', ->
-  supersecret.Game.loaded = true)
+lib.load(
+  'facemanager',
+  'firstperson',
+  'grid',
+  'marchingcubes',
+  'now',
+  'set',
+   -> supersecret.Game.loaded = true)
 
 class NoiseGenerator
   constructor: (noise, description) ->
@@ -61,7 +67,7 @@ class World
 
     DEBUG.expose('world', this)
 
-  generateChunk: (cx, cy, cz) ->
+  generateChunk: (cx, cy, cz, callback) ->
     leftNeighbor = @chunks.exists(cx - 1, cy, cz)
     rightNeighbor = @chunks.exists(cx + 1, cy, cz)
     upNeighbor = @chunks.exists(cx, cy + 1, cz)
@@ -69,28 +75,39 @@ class World
     frontNeighbor = @chunks.exists(cx, cy, cz+1)
     backNeighbor = @chunks.exists(cx, cy, cz-1)
     chunk = new Grid(3, @chunkSize)
+    @chunks.set(chunk, cx, cy, cz)
     mx = @chunkSize[0]-1
     my = @chunkSize[1]-1
     mz = @chunkSize[2]-1
-    for x in [0..mx]
-      for y in [0..my]
-        for z in [0..mz]
-          n = @noise.noise3D(
-            (x + cx * @chunkSize[0]) / @scale[0],
-            (y + cy * @chunkSize[1]) / @scale[1],
-            (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
-          chunk.set(n > 0, x, y, z)
-          if x == 0 and leftNeighbor
-            @dirty.add(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
-          else if x == mx and rightNeighbor
-            @dirty.add(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
-          if z == 0 and backNeighbor
-            @dirty.add(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
-          else if z == mz and frontNeighbor
-            @dirty.add(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
-    @chunks.set(chunk, cx, cy, cz)
+    lastUpdate = now()
+    continueY = ((start) ->
+      console.log('continueY: (' + cx + ', ' + cy + ', ' + cz + ') ' + start + '-' + my)
+      for y in [start..my]
+        for x in [0..mx]
+          for z in [0..mz]
+            n = @noise.noise3D(
+              (x + cx * @chunkSize[0]) / @scale[0],
+              (y + cy * @chunkSize[1]) / @scale[1],
+              (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+            chunk.set(n > 0, x, y, z)
+            @dirty.add @getAbsolutePosition(x, y, z, cx, cy, cz)
+            if x == 0 and leftNeighbor
+              @dirty.add(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
+            else if x == mx and rightNeighbor
+              @dirty.add(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
+            if z == 0 and backNeighbor
+              @dirty.add(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
+            else if z == mz and frontNeighbor
+              @dirty.add(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
+        if y < my and now() - lastUpdate > 100
+          setTimeout((-> continueY(y + 1)), 100)
+          return
+      callback and callback()
+    ).bind(this)
+    continueY(0)
 
   generateChunkGeometry: (cx, cy, cz) ->
+    throw 'This should not be called anymore'
     chunk = @chunks.get(cx, cy, cz)
     #cubes = null
     geo = null
@@ -175,6 +192,7 @@ class World
           for dz in [0, 1]
             realDirty.add [x - dx, y - dy, z - dz]
     ).bind(this))
+    console.log('After popping: ', @dirty.length)
 
     dirtyChunks = new Set()
 
@@ -182,7 +200,15 @@ class World
       [x, y, z] = p
       a = @getRelativePosition(x, y, z)
       return if a is undefined
-      geo = @geometry.get(a.cx, a.cy, a.cz)
+      geo = null
+      if not @geometry.exists(a.cx, a.cy, a.cz)
+        cubes = new MarchingCubes(@chunkSize, @cubeSize)
+        geo =
+          cubes: cubes
+        @geometry.set(geo, a.cx, a.cy, a.cz)
+      else
+        geo = @geometry.get(a.cx, a.cy, a.cz)
+      #geo = @geometry.get(a.cx, a.cy, a.cz)
       #cubes = geo.cubes
       #mesh = geo.mesh
       #cubes.updateCube(@get.bind(this), x, y, z)
@@ -199,7 +225,7 @@ class World
       [cx, cy, cz] = c
       geo = @geometry.get(cx, cy, cz)
       g = geo.cubes.getGeometry()
-      if g != geo.mesh.geometry
+      if !geo.mesh or g != geo.mesh.geometry
         @lod.remove geo.mesh
         console.log( 'updating geometry')
         @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
@@ -254,9 +280,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     @world = new World(@chunkSize, @cubeSize, @scene)
     @world.generateChunk(0, 0, 0)
-    @world.generateChunkGeometry(0, 0, 0)
-    @world.generateChunk(1, 0, 0)
-    @world.generateChunkGeometry(1, 0, 0)
+    #@world.generateChunkGeometry(0, 0, 0)
+    #@world.generateChunk(1, 0, 0)
+    #@world.generateChunkGeometry(1, 0, 0)
 
     @selectedChunk =
       x: 0

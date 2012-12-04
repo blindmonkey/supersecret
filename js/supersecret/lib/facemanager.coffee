@@ -12,6 +12,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       @nullFace = new THREE.Face3(0, 0, 0)
       @mesh = new THREE.Mesh()
       @regenerateGeometry()
+    @addVector([0, 0, 0])
 
   regenerateGeometry: ->
     newGeometry = new THREE.Geometry()

@@ -213,13 +213,16 @@ getCornerArray = (getter, coords...) ->
 
 
 lib.export('MarchingCubes', class MarchingCubes
-  constructor: (scale) ->
+  constructor: (size, scale) ->
     if not table?
       initializeTable()
     dirty = true
     @scale = scale
     @identified = 0
     @remaning = 0
+    @grid = new Grid(3, size)
+    #geometry = new THREE.Geometry()
+    @faceManager = new FaceManager(500)
 
   getGeometry: ->
     return @faceManager.geometry
