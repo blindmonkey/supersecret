@@ -391,9 +391,9 @@ class World
 
   generateChunk: (cx, cy, cz) ->
     chunk = new Grid(3, @chunkSize)
-    for x in [0..@chunkSize[0]-1]
-      for y in [0..@chunkSize[1]-1]
-        for z in [0..@chunkSize[2]-1]
+    for x in [0..@chunkSize[0]-2]
+      for y in [0..@chunkSize[1]-2]
+        for z in [0..@chunkSize[2]-2]
           n = @noise.noise3D(
             (x + cx * @chunkSize[0]) / @scale[0],
             (y + cy * @chunkSize[1]) / @scale[1],
@@ -566,9 +566,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         #new THREE.MeshBasicMaterial({color: 0x00ff00})
       new THREE.MeshLambertMaterial({color: 0x00ff00, ambient: 0x00ff00})
       )
-      mesh.position.x = cx * @cubeSize * @chunkSize[0]
-      mesh.position.y = cy * @cubeSize * @chunkSize[1]
-      mesh.position.z = cz * @cubeSize * @chunkSize[2]
+      mesh.position.x = cx * @cubeSize * (@chunkSize[0] - 1)
+      mesh.position.y = cy * @cubeSize * (@chunkSize[1] - 1)
+      mesh.position.z = cz * @cubeSize * (@chunkSize[2] - 1)
     ).bind(this)
     @chunks.handleEvent('set', (data, coords...) ->
       console.log('Generating ' + coords)

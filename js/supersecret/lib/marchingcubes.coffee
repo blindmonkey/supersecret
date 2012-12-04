@@ -243,24 +243,26 @@ lib.export('MarchingCubes', class MarchingCubes
         @faceManager.removeFaces(faces...)
       a = []
       for face in polygons
-        transformedFace = getTransformedFace(transform, face, [x * scale, y * scale, z * scale])
+        transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
         a.push(transformedFace)
         @faceManager.addFace(transformedFace...)
       @grid.set(a, x, y, z)
     else
       @remaining++
 
+  getTransformedFace: (transform, face, offset) ->
+    [ox, oy, oz] = offset
+    newFace = []
+    for [x, y, z] in face
+      [nx, ny, nz] = transform(x, y, z)
+      newFace.push [nx * @scale + ox, ny * @scale + oy, nz * @scale + oz]
+    return newFace
+
   generateGeometry: (getter, scale, ranges...) ->
     identified = 0
     remaining = 0
-
-    getTransformedFace = (transform, face, offset) ->
-      [ox, oy, oz] = offset
-      newFace = []
-      for [x, y, z] in face
-        [nx, ny, nz] = transform(x, y, z)
-        newFace.push [nx * scale + ox, ny * scale + oy, nz * scale + oz]
-      return newFace
+    
+    @scale = scale
 
     @grid = new Grid(3, ranges)
     #geometry = new THREE.Geometry()
@@ -273,7 +275,7 @@ lib.export('MarchingCubes', class MarchingCubes
           @updateCube(getter, x, y, z)
 
     console.log 'faces computed ' + identified + '/' + remaining
-    g = faceManager.generateGeometry()
+    g = @faceManager.generateGeometry()
     console.log 'geometry generated'
     return g
 )
