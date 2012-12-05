@@ -1,4 +1,4 @@
-lib.load('id')
+lib.load('id', 'now')
 
 lib.export('Set', class Set
   constructor: (l) ->
@@ -25,11 +25,24 @@ lib.export('Set', class Set
     for item of @items
       f(@items[item])
 
-  forEachPop: (f) ->
-    for item of @items
-      f(@items[item])
-      delete @items[item]
-      @length--
+  forEachPop: (f, untilFunction) ->
+    while @length > 0
+      f(@pop())
+      if untilFunction and untilFunction()
+        return
+
+  forEachPopAsync: (f, callback) ->
+    lastUpdated = now()
+    g = (->
+      lastUpdated = now()
+      while @length > 0
+        f(@pop())
+        if now() - lastUpdated > 100
+          setTimeout(g)
+          return
+      callback()
+    ).bind(this)
+    g()
 
   add: (item) ->
     id = generateId(item)
