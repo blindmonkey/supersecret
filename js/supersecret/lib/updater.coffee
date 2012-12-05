@@ -4,7 +4,7 @@ lib.export('Updater', class Updater
     @updates = {}
 
   setFrequency: (id_or_frequency, maybe_frequency) ->
-    frequency = id_or_frequency
+    frequency = id_or_frequency or 5000
     id = null
     if maybe_frequency
       id = id_or_frequency
@@ -23,7 +23,9 @@ lib.export('Updater', class Updater
       @updates[id] = {frequency: @frequency, updated: 0}
     if now() - @updates[id].updated > @updates[id].frequency
       #console.log(@updates[id].frequency, @updates[id].updated)
-      console.log('id', message...)
+      message = ((if m instanceof Function then m() else m)  for m in message)
+      console.log(id)
+      console.log(id + ': ', message...)
       @updates[id].updated = now()
 
 )

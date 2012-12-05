@@ -49,6 +49,8 @@ class World
     @dirty = new Set()
     @geometry = new Grid(3, [Infinity, Infinity, Infinity])
     @chunks = new Grid(3, [Infinity, Infinity, Infinity])
+    @dirtyChunks = new Set()
+    @updateCache = new Grid(3, [Infinity, Infinity, Infinity])
     @seaLevel = @chunkSize[1] / 2
     @scale = [2, 1, 2]
     @updatingGeometry = false
@@ -68,6 +70,7 @@ class World
     @scene.add @lod
     @updater = new Updater(1000)
     @updater.setFrequency('pulse', 10000)
+    @updater.setFrequency('chunkRefresh', 1500)
 
 
     DEBUG.expose('world', this)
@@ -80,36 +83,70 @@ class World
     frontNeighbor = @chunks.exists(cx, cy, cz+1)
     backNeighbor = @chunks.exists(cx, cy, cz-1)
     chunk = new Grid(3, @chunkSize)
-    @chunks.set(chunk, cx, cy, cz)
     mx = @chunkSize[0]-1
     my = @chunkSize[1]-1
     mz = @chunkSize[2]-1
     lastUpdate = now()
-    continueY = ((start) ->
-      @updater.update('continueY', 'continueY: (' + cx + ', ' + cy + ', ' + cz + ') ' + start + '-' + my)
-      for y in [start..my]
-        for x in [0..mx]
-          for z in [0..mz]
-            n = @noise.noise3D(
-              (x + cx * @chunkSize[0]) / @scale[0],
-              (y + cy * @chunkSize[1]) / @scale[1],
-              (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
-            chunk.set(n > 0, x, y, z)
-            @dirty.add @getAbsolutePosition(x, y, z, cx, cy, cz)
-            if x == 0 and leftNeighbor
-              @dirty.add(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
-            else if x == mx and rightNeighbor
-              @dirty.add(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
-            if z == 0 and backNeighbor
-              @dirty.add(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
-            else if z == mz and frontNeighbor
-              @dirty.add(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
-        if y < my and now() - lastUpdate > 100
-          setTimeout((-> continueY(y + 1)), 100)
-          return
-      callback and callback()
-    ).bind(this)
-    continueY(0)
+    dirtySet = new Set()
+    # ondone = (->
+    #   @chunks.set(chunk, cx, cy, cz)
+    #   console.log("Chunk generation for " + cx + ', ' + cy + ', ' + cz + ' is finished. Adding dirty cubes (' + dirtySet.length + ')')
+    #   dirtySet.forEachPopAsync(((item) ->
+    #     #console.log("async ")
+    #     @updater.update('Dirty update', dirtySet.length, @dirty.length)
+    #     @addDirty(item)
+    #   ).bind(this), (->
+    #     console.log('Dirty update complete')
+    #     callback and callback()
+    #   ).bind(this))
+    # ).bind(this)
+
+    @chunks.set(chunk, cx, cy, cz)
+    worker = new NestedForWorker([[0,my+1], [0,mx+1], [0,mz+1]], ((y, x, z) ->
+      n = @noise.noise3D(
+        (x + cx * @chunkSize[0]) / @scale[0],
+        (y + cy * @chunkSize[1]) / @scale[1],
+        (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+      chunk.set(n > 0, x, y, z)
+      @addDirty @getAbsolutePosition(x, y, z, cx, cy, cz)
+      if x == 0 and leftNeighbor
+        @addDirty(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
+      else if x == mx and rightNeighbor
+        @addDirty(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
+      if z == 0 and backNeighbor
+        @addDirty(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
+      else if z == mz and frontNeighbor
+        @addDirty(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
+    ).bind(this), {
+      onpause: ((state) ->
+        @updater.update('generateChunk', "Chunk generation for " + cx + ', ' + cy + ', ' + cz + ' paused at ' + state.variables)
+      ).bind(this)
+      ondone: callback
+    })
+    worker.run()
+    # continueY = ((start) ->
+    #   @updater.update('continueY', 'continueY: (' + cx + ', ' + cy + ', ' + cz + ') ' + start + '-' + my)
+    #   for y in [start..my]
+    #     for x in [0..mx]
+    #       for z in [0..mz]
+    #     if y < my and now() - lastUpdate > 100
+    #       setTimeout((-> continueY(y + 1)), 100)
+    #       return
+    #   #callback and callback()
+    #   ondone()
+    # ).bind(this)
+    # continueY(0)
+
+  addDirty: (position) ->
+    [x, y, z] = position
+    #@dirty.add position
+    for dx in [0, 1]
+      for dy in [0, 1]
+        for dz in [0, 1]
+          p = [x - dx, y - dy, z - dz]
+          a = @getRelativePosition(p...)
+          if a isnt undefined and @blockNeedsUpdate(p...)
+            @dirty.add p
 
   generateChunkGeometry: (cx, cy, cz) ->
     throw 'This should not be called anymore'
@@ -159,8 +196,6 @@ class World
     cy = Math.floor(y / @chunkSize[1])
     cz = Math.floor(z / @chunkSize[2])
     chunk = @chunks.get(cx, cy, cz)
-    if chunk is undefined
-      return undefined
     if cx >= 0
       x -= cx * @chunkSize[0]
     else
@@ -184,20 +219,125 @@ class World
     }
 
   update: (delta) ->
-    @updateGeometry()
+    @updater.update('updateGeometry', @updateGeometry.bind(this))
+
+  getNeighbors: (x, y, z) ->
+    neighbors = []
+    for dx in [0..1]
+      for dy in [0..1]
+        for dz in [0..1]
+          p = [x - dx, y - dy, z - dz]
+          neighbors.push @get(p...)
+    return neighbors
+
+  markClean: (x, y, z) ->
+    a = @getRelativePosition(x, y, z)
+    return if a.chunk is undefined
+    cacheChunk = @updateCache.get(a.cx, a.cy, a.cz)
+    if not cacheChunk
+      cacheChunk = new Grid(3, @chunkSize)
+      @updateCache.set(cacheChunk, a.cx, a.cy, a.cz)
+    neighbors = @getNeighbors(x, y, z)
+    cacheChunk.set(neighbors, a.x, a.y, a.z)
+
+  blockNeedsUpdate: (x, y, z) ->
+    a = @getRelativePosition(x, y, z)
+    return false if a.chunk is undefined
+    neighbors = @getNeighbors(x, y, z)
+    cacheChunk = @updateCache.get(a.cx, a.cy, a.cz)
+    return true if not cacheChunk
+    cachedNeighbors = cacheChunk.get(a.x, a.y, a.z)
+    return true if not cachedNeighbors
+
+    if neighbors.length != cachedNeighbors.length
+      throw 'Actual neighbors and cached neighbors are not the same length'
+
+    for i in [0..neighbors.length-1]
+      if neighbors[i] != cachedNeighbors[i]
+        return true
+    return false
+
+
 
 
   updateGeometry: ->
+    return if @dirty.length == 0
+    console.log('in updateGeometry')
+    t = new Timer()
+    #console.log('in updateGeometry', @dirty.length)
+    # realDirty = new Set()
+    # @dirty.forEachPop(((p) ->
+    #   [x, y, z] = p
+    #   for dx in [0, 1]
+    #     for dy in [0, 1]
+    #       for dz in [0, 1]
+    #         realDirty.add [x - dx, y - dy, z - dz]
+    # ).bind(this))
+
+    t.start('updateGeometry')
+    #dirtyChunks = new Set()
+
+    skipCount = 0
+    @dirty.forEachPop(((p) ->
+      if not @blockNeedsUpdate(p...)
+        skipCount++
+        return
+      [x, y, z] = p
+      a = @getRelativePosition(x, y, z)
+      geo = null
+      if not @geometry.exists(a.cx, a.cy, a.cz)
+        cubes = new MarchingCubes(@chunkSize, @cubeSize)
+        geo =
+          cubes: cubes
+        @geometry.set(geo, a.cx, a.cy, a.cz)
+      else
+        geo = @geometry.get(a.cx, a.cy, a.cz)
+      #geo = @geometry.get(a.cx, a.cy, a.cz)
+      #cubes = geo.cubes
+      #mesh = geo.mesh
+      #cubes.updateCube(@get.bind(this), x, y, z)
+      geo.cubes.updateCube(((x, y, z) ->
+        return @get(
+          x + a.cx * @chunkSize[0],
+          y + a.cy * @chunkSize[1],
+          z + a.cz * @chunkSize[2])
+      ).bind(this), a.x, a.y, a.z)
+      @markClean(p...)
+      @dirtyChunks.add [a.cx, a.cy, a.cz]
+    ).bind(this))
+    #console.log('After popping: ', @dirty.length, 'blocks skipped:', skipCount)
+
+    if @dirtyChunks.length > 1 and not @stoppedAlready
+      @stoppedAlready = true
+      debugger
+
+    @updater.update('chunkRefresh', (->
+      @dirtyChunks.forEachPop(((c) ->
+        [cx, cy, cz] = c
+        geo = @geometry.get(cx, cy, cz)
+        g = geo.cubes.getGeometry()
+        if !geo.mesh or g != geo.mesh.geometry
+          @lod.remove geo.mesh
+          console.log( 'updating geometry')
+          @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
+        console.log('computing face normals for ' + cx + ', ' + cy + ', ' + cz)
+        g.computeFaceNormals()
+        g.normalsNeedUpdate = true
+        console.log('done')
+      ).bind(this))
+    ).bind(this))
+    #console.log('Geometry update took ', t.stop('updateGeometry'))
+    return
     @updater.update('pulse', @dirty.length)
     return if @dirty.length == 0 or @updatingGeometry
     @updatingGeometry = true
-    @updater.update('updateGeometry', 'in updateGeometry', @dirty.length, @updatingGeometry)
+    @updater.update('updateGeometryStatus', 'in updateGeometry', @dirty.length, @updatingGeometry)
     processed = new Set()
     dirtyChunks = new Set()
     popped = 0
     ll = now()
     lastUpdated = now()
-    @dirty.forEachPop(((p) ->
+    @dirty.forEachPopAsync(((p) ->
       @updater.update('dirty', 'Dirty block count: ' + @dirty.length + '; processed: ' + processed.length)
       [x, y, z] = p
 
@@ -208,16 +348,16 @@ class World
         ll = now()
       # Make sure that this point isn't added again.
       processed.add [x, y, z]
-      for dx in [0, 1]
-        for dy in [0, 1]
-          for dz in [0, 1]
-            p = [x - dx, y - dy, z - dz]
-            a = @getRelativePosition(p...)
-            if not processed.contains(p) and a isnt undefined
-              @dirty.add p
+      # for dx in [0, 1]
+      #   for dy in [0, 1]
+      #     for dz in [0, 1]
+      #       p = [x - dx, y - dy, z - dz]
+      #       a = @getRelativePosition(p...)
+      #       if not processed.contains(p) and a isnt undefined
+      #         @dirty.add p
 
       a = @getRelativePosition(x, y, z)
-      return if a is undefined
+      return if a.chunk is undefined
       geo = null
       if not @geometry.exists(a.cx, a.cy, a.cz)
         cubes = new MarchingCubes(@chunkSize, @cubeSize)
@@ -234,70 +374,36 @@ class World
           z + a.cz * @chunkSize[2])
       ).bind(this), a.x, a.y, a.z)
       dirtyChunks.add [a.cx, a.cy, a.cz]
-    ).bind(this), -> now() - lastUpdated > 100)
-    # console.log('geometry update complete')
-    dirtyChunks.forEach(((c) ->
-      [cx, cy, cz] = c
-      geo = @geometry.get(cx, cy, cz)
-      g = geo.cubes.getGeometry()
-      if !geo.mesh or g != geo.mesh.geometry
-        @lod.remove geo.mesh
-        # console.log( 'updating geometry')
-        @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
-      # console.log('computing face normals...')
-      g.computeFaceNormals()
-      g.normalsNeedUpdate = true
-      # console.log('done')
+    ).bind(this), (->
+      # console.log('geometry update complete')
+      dirtyChunks.forEach(((c) ->
+        [cx, cy, cz] = c
+        geo = @geometry.get(cx, cy, cz)
+        g = geo.cubes.getGeometry()
+        if !geo.mesh or g != geo.mesh.geometry
+          @lod.remove geo.mesh
+          # console.log( 'updating geometry')
+          @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
+        # console.log('computing face normals...')
+        g.computeFaceNormals()
+        g.normalsNeedUpdate = true
+        # console.log('done')
+      ).bind(this))
+      @updatingGeometry = false
     ).bind(this))
-    @updatingGeometry = false
 
 
   set: (data, x, y, z) ->
     a = @getRelativePosition(x, y, z)
-    return undefined if a is undefined
+    return undefined if a.chunk is undefined
     r = a.chunk.set(data, a.x, a.y, a.z)
     @dirty.add [x, y, z]
     return r
 
   get: (x, y, z) ->
     a = @getRelativePosition(x, y, z)
-    return undefined if a is undefined
+    return undefined if a.chunk is undefined
     return a.chunk.get(a.x, a.y, a.z)
-
-
-class Timer
-  constructor: ->
-    @timers = {}
-
-  get: (timer) ->
-    t = @timers[timer]
-    return t if t is undefined
-    if t.going
-      return now() - t.start
-    return t.end - t.start
-
-  start: (timer) ->
-    @timers[timer] = t = {}
-    t.start = now()
-    t.going = true
-    t.laps = []
-
-  stop: (timer) ->
-    t = @timers[timer]
-    return t if t is undefined
-    t.going = false
-    t.end = now()
-    return t.end - t.start
-
-  laps: (timer) ->
-    return (lap for lap in @timers[timer].laps)
-
-  lap: (timer) ->
-    t = @timers[timer]
-    return t if t is undefined
-    t.laps.push (now() - t.start)
-
-
 
 
 supersecret.Game = class NewGame extends supersecret.BaseGame

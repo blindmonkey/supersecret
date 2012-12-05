@@ -278,7 +278,7 @@ lib.export('MarchingCubes', class MarchingCubes
 
     @grid = new Grid(3, ranges)
     #geometry = new THREE.Geometry()
-    @faceManager = new FaceManager(50)
+    @faceManager = new FaceManager(1000)
     console.log('generating geometry')
     for x in [ranges[0][0]..ranges[0][1]]
       #console.log(x / grid.size[0] * 100)

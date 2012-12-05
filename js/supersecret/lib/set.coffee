@@ -1,4 +1,4 @@
-lib.load('id', 'now')
+lib.load('id', 'now', 'worker')
 
 lib.export('Set', class Set
   constructor: (l) ->
@@ -32,17 +32,27 @@ lib.export('Set', class Set
         return
 
   forEachPopAsync: (f, callback) ->
-    lastUpdated = now()
-    g = (->
-      lastUpdated = now()
-      while @length > 0
+    worker = new WhileWorker({
+      condition: (->
+        return @length > 0
+      ).bind(this)
+      work: (->
         f(@pop())
-        if now() - lastUpdated > 100
-          setTimeout(g)
-          return
-      callback()
-    ).bind(this)
-    g()
+      ).bind(this)
+    }, {
+      ondone: callback
+    })
+    worker.run()
+    # lastUpdated = now()
+    # g = (->
+    #   lastUpdated = now()
+    #   while @length > 0
+    #     if now() - lastUpdated > 100
+    #       setTimeout(g, 100)
+    #       return
+    #   callback()
+    # ).bind(this)
+    # g()
 
   add: (item) ->
     id = generateId(item)

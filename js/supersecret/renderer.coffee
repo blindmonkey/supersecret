@@ -39,6 +39,8 @@ supersecret.Renderer = class Renderer
       lastUpdated = new Date().getTime() - frequency
       return ->
         if new Date().getTime() - lastUpdated > frequency
+          if frameHistory.length > 100
+            frameHistory = frameHistory.splice(frameHistory.length - 100, 100)
           console.log('Render loop: ' + 1000 / average(frameHistory) + ' frames per second')
           lastUpdated = new Date().getTime())(5000)
 
