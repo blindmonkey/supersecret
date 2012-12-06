@@ -45,7 +45,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       faceId = @getFaceId(face)
       @faceIndex[faceId] = @processFace(face)
       if @geometry
-        @geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+        @geometry.faces.push @makeFace3(face)
 
   removeFaces: (faces...) ->
     for face in faces
@@ -87,22 +87,30 @@ lib.export('FaceManager', class supersecret.FaceManager
     face.cIndex = c
     return face
 
-  addFace: (a, b, c, doubleSided) ->
+  makeFace3: (face) ->
+    if not face.color
+      debugger
+    new THREE.Face3(face.aIndex, face.bIndex, face.cIndex,
+        face.normal,
+        face.color)
+
+  addFace: (a, b, c, properties, doubleSided) ->
     [aId, bId, cId] = (@getVectorId(v) for v in [a, b, c])
     face = {
       a: a
       b: b
       c: c
+      normal: properties.normal
+      color: properties.color
     }
     faceId = @getFaceId(face)
     if faceId not of @faceIndex
       if @facePool.length == 0
-        #console.log("REGENERATING!!!")
         @regenerateGeometry()
       emptyFaceIndex = @facePool.pop()
       @faces[emptyFaceIndex] = @processFace(face)
       @faceIndex[faceId] = emptyFaceIndex
-      @geometry.faces[emptyFaceIndex] = new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+      @geometry.faces[emptyFaceIndex] = @makeFace3(face)
       @geometry.verticesNeedUpdate = true
       @geometry.elementsNeedUpdate = true
     if doubleSided
@@ -118,6 +126,6 @@ lib.export('FaceManager', class supersecret.FaceManager
     for vector in @vectors
       @geometry.vertices.push vector
     for face in @faces
-      @geometry.faces.push new THREE.Face3(face.aIndex, face.bIndex, face.cIndex)
+      @geometry.faces.push @makeFace3(face)
     return @geometry
 )

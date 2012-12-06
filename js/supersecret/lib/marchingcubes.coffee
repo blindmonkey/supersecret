@@ -256,7 +256,7 @@ lib.export('MarchingCubes', class MarchingCubes
         transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
         a.push(transformedFace)
         #console.log('Adding new face', transformedFace)
-        @faceManager.addFace(transformedFace...)
+        @faceManager.addFace(transformedFace.concat([{color: new THREE.Color(0xff0000)}])...)
       @grid.set(a, x, y, z)
     else
       @remaining++

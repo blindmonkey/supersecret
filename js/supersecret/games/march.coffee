@@ -81,6 +81,7 @@ class World
 
     @chunkGenerationSet = new Set()
     @generatingChunk = null
+    @synchronous = false
 
     WorkerPool.setPauseTime(10)
     WorkerPool.setCycleTime(300)
@@ -132,7 +133,7 @@ class World
     mesh = new THREE.Mesh(
       geometry,
       #new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
-      new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x00ff00})
+      new THREE.MeshPhongMaterial({ vertexColors: THREE.FaceColors}) # {color: 0x00ff00, ambient: 0x00ff00})
     )
     mesh.position.x = cx * @cubeSize * (@chunkSize[0])
     mesh.position.y = cy * @cubeSize * (@chunkSize[1])
@@ -176,6 +177,7 @@ class World
 
   update: (delta) ->
     if not @generatingChunk? and @chunkGenerationSet.length > 0
+      generationStart = now()
       @generatingChunk = @chunkGenerationSet.pop()
       [cx, cy, cz] = @generatingChunk
       console.log("Starting generation for chunk " + cx + ', ' + cy + ', ' + cz)
@@ -212,9 +214,11 @@ class World
         stats.skipped++
       ).bind(this), {
         ondone: (->
+          console.log('Chunk generated in ' + (now() - generationStart))
           @generatingChunk = null
         ).bind(this)
       })
+      worker.synchronous = @synchronous
       worker.run()
 
     #@updater.update('update/dirtyReport', 'Currently there are ' + @dirty.length + ' dirty blocks')
@@ -338,72 +342,8 @@ class World
         @refreshChunkGeometry(c...)
       ).bind(this))
     ).bind(this))
+    w.synchronous = @synchronous
     w.cycle = 500
-
-    return
-    @updater.update('pulse', @dirty.length)
-    return if @dirty.length == 0 or @updatingGeometry
-    @updatingGeometry = true
-    @updater.update('updateGeometryStatus', 'in updateGeometry', @dirty.length, @updatingGeometry)
-    processed = new Set()
-    dirtyChunks = new Set()
-    popped = 0
-    ll = now()
-    lastUpdated = now()
-    @dirty.forEachPopAsync(((p) ->
-      @updater.update('dirty', 'Dirty block count: ' + @dirty.length + '; processed: ' + processed.length)
-      [x, y, z] = p
-
-      if processed.contains(p)
-        return
-      if now() - ll > 10000
-        #debugger
-        ll = now()
-      # Make sure that this point isn't added again.
-      processed.add [x, y, z]
-      # for dx in [0, 1]
-      #   for dy in [0, 1]
-      #     for dz in [0, 1]
-      #       p = [x - dx, y - dy, z - dz]
-      #       a = @getRelativePosition(p...)
-      #       if not processed.contains(p) and a isnt undefined
-      #         @dirty.add p
-
-      a = @getRelativePosition(x, y, z)
-      return if a.chunk is undefined
-      geo = null
-      if not @geometry.exists(a.cx, a.cy, a.cz)
-        cubes = new MarchingCubes(@chunkSize, @cubeSize)
-        geo =
-          cubes: cubes
-        @geometry.set(geo, a.cx, a.cy, a.cz)
-      else
-        geo = @geometry.get(a.cx, a.cy, a.cz)
-
-      geo.cubes.updateCube(((x, y, z) ->
-        return @get(
-          x + a.cx * @chunkSize[0],
-          y + a.cy * @chunkSize[1],
-          z + a.cz * @chunkSize[2])
-      ).bind(this), a.x, a.y, a.z)
-      dirtyChunks.add [a.cx, a.cy, a.cz]
-    ).bind(this), (->
-      # console.log('geometry update complete')
-      dirtyChunks.forEach(((c) ->
-        [cx, cy, cz] = c
-        geo = @geometry.get(cx, cy, cz)
-        g = geo.cubes.getGeometry()
-        if !geo.mesh or g != geo.mesh.geometry
-          @lod.remove geo.mesh
-          # console.log( 'updating geometry')
-          @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
-        # console.log('computing face normals...')
-        g.computeFaceNormals()
-        g.normalsNeedUpdate = true
-        # console.log('done')
-      ).bind(this))
-      @updatingGeometry = false
-    ).bind(this))
 
 
   set: (data, x, y, z) ->
@@ -438,7 +378,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         scale: 1 / 256
         multiplier: 1 / 4
         }])
-    @chunkSize = [16, 128, 16]
+    @chunkSize = [32, 128, 32]
     horizontalScale = 2
     verticalScale = 1
     @cubeSize = 4
@@ -464,22 +404,19 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     m = (@chunkSize[i] * @cubeSize for i in [0..2])
     addVertex = (x, y, z) ->
       geometry.vertices.push new THREE.Vector3(x, y, z)
-    addVertex(0, 0, 0)
-    addVertex(m[0], 0, 0)
-    addVertex(m[0], 0, 0)
-    addVertex(m[0], 0, m[2])
-    addVertex(m[0], 0, m[2])
-    addVertex(0, 0, m[2])
-    addVertex(0, 0, 0)
-    addVertex(0, m[1], 0)
-    addVertex(m[0], m[1], 0)
-    addVertex(m[0], m[1], 0)
-    addVertex(m[0], m[1], m[2])
-    addVertex(m[0], m[1], m[2])
-    addVertex(0, m[1], m[2])
-    addVertex(0, m[1], 0)
+    vpositions = [[0, 0], [m[0], 0], [m[0], m[2]], [0, m[2]]]
+    for i in [0..vpositions.length - 1]
+      j = (i+1) % vpositions.length
+      ii = vpositions[i]
+      jj = vpositions[j]
+      addVertex(ii[0], 0, ii[1])
+      addVertex(jj[0], 0, jj[1])
+      addVertex(ii[0], m[1], ii[1])
+      addVertex(jj[0], m[1], jj[1])
+      addVertex(ii[0], 0, ii[1])
+      addVertex(ii[0], m[1], ii[1])
 
-    @selectedMesh = new THREE.Line(geometry, new THREE.LineBasicMaterial({color:0x0000ff}), THREE.Lines)
+    @selectedMesh = new THREE.Line(geometry, new THREE.LineBasicMaterial({color:0x00ffff}), THREE.LinePieces)
     @scene.add @selectedMesh
     $(document).keydown(((e) ->
       last =
@@ -505,7 +442,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         when 82 # R
           @world.refreshChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
         when 86 # V
-          @world.generateChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
+          @world.synchronous = not @world.synchronous
       if last.x != @selectedChunk.x or last.y != @selectedChunk.y or last.z != @selectedChunk.z
         @selectedMesh.position.x = @selectedChunk.x * @cubeSize * @chunkSize[0]
         @selectedMesh.position.y = @selectedChunk.y * @cubeSize * @chunkSize[1]
