@@ -1,4 +1,4 @@
-lib.load('now', 'timer')
+lib.load('now', 'timer', 'updater')
 
 lib.export('WorkerPool', class WorkerPool
   @__instance: null
@@ -19,17 +19,18 @@ lib.export('WorkerPool', class WorkerPool
     @pause = pauseTime
     @scheduleNext()
     @timer = new Timer()
+    @updater = new Updater(5000)
 
   scheduleNext: ->
     setTimeout(@doWork.bind(this), @pause)
 
   doWork: ->
     start = now()
+    @updater.update('WorkerPool.doWork', @workers.length + ' active workers')
     cycleEndTime = start + @cycle
-    while now() < cycleEndTime
-      return if @workers.length == 0
-      i = Math.floor(Math.random() * @workers.length)
-      worker = @workers.splice(i, 1)[0]
+    while now() < cycleEndTime and @workers.length > 0
+      #i = Math.floor(Math.random() * @workers.length)
+      worker = @workers.splice(0, 1)[0]
       if not worker.running
         worker.start()
       workerEndTime = if worker.cycle then (start + worker.cycle) else cycleEndTime
@@ -60,6 +61,7 @@ class Worker
     @callbacks.oncontinue and @callbacks.oncontinue(@state)
     @work(endtime)
     if @done
+      @running = false
       @callbacks.ondone and @callbacks.ondone(@state)
     else
       @callbacks.onpause and @callbacks.onpause(@state)
@@ -72,6 +74,16 @@ class Worker
       throw 'Cannot start a finished worker'
     @running = true
     @state = {}
+
+
+lib.export('AsyncWorker', class AsyncWorker extends Worker
+  constructor: (work, callbacks) ->
+    @work = (->
+      work()
+      @done = true
+    ).bind(this)
+    super(callbacks)
+)
 
 
 lib.export('WhileWorker', class WhileWorker extends Worker

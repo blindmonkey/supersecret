@@ -22,10 +22,15 @@ lib.export('Updater', class Updater
     if id not of @updates
       @updates[id] = {frequency: @frequency, updated: 0}
     if now() - @updates[id].updated > @updates[id].frequency
-      #console.log(@updates[id].frequency, @updates[id].updated)
-      message = ((if m instanceof Function then m() else m)  for m in message)
-      console.log(id)
-      console.log(id + ': ', message...)
+      realMessage = []
+      for m in message
+        if m instanceof Function
+          m = m()
+          if m
+            realMessage.push m
+        else
+          realMessage.push m
+      console.log(id + ':', realMessage...)
       @updates[id].updated = now()
 
 )

@@ -43,6 +43,7 @@ lib.export('Set', class Set
       ondone: callback
     })
     worker.run()
+    return worker
     # lastUpdated = now()
     # g = (->
     #   lastUpdated = now()

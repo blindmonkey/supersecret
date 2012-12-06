@@ -25,17 +25,17 @@ supersecret.Game = class WorkerTest
     timer = new Timer()
     timer.start('worker')
     WorkerPool.setCycleTime(1)
-    loopWorker = new NestedForWorker([[0,3], [0,3], [0, 3]], ((x, y, z) ->
-      timer.start('work')
-      console.log(x, y, z)
-      timer.lap('work')
-      timer.stop('work')
+    loopWorker = new NestedForWorker([[0,pixels.buffer.width-1], [0,pixels.buffer.height-1]], ((x, y) ->
+      n = noise.noise2D(x / 32, y / 32)
+      n = Math.floor((n + 1) / 2 * 255)
+      pixels.set(x, y, new Color(n, n, n))
     ), {
       onpause: (state) ->
-        console.log('pause', state.variable)
+        pixels.update()
       ondone: ->
-        console.log timer.stop('worker')
-      })
+        pixels.update()
+    })
+    loopWorker.cycle = 500
     loopWorker.run()
 
     return

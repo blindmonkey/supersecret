@@ -40,6 +40,13 @@ class NoiseGenerator
       s += @noise.noise3D(x * scale, y * scale, z * scale, w * scale) * multiplier - offset
     return s
 
+doAsync = (f, callback) ->
+  w = new AsyncWorker(f, {
+    ondone: callback
+  })
+  w.run()
+  return w
+
 
 class World
   constructor: (chunkSize, cubeSize, scene) ->
@@ -72,84 +79,33 @@ class World
     @updater.setFrequency('pulse', 10000)
     @updater.setFrequency('chunkRefresh', 1500)
 
+    @chunkGenerationSet = new Set()
+    @generatingChunk = null
+
+    WorkerPool.setPauseTime(10)
+    WorkerPool.setCycleTime(300)
 
     DEBUG.expose('world', this)
 
   generateChunk: (cx, cy, cz, callback) ->
-    leftNeighbor = @chunks.exists(cx - 1, cy, cz)
-    rightNeighbor = @chunks.exists(cx + 1, cy, cz)
-    upNeighbor = @chunks.exists(cx, cy + 1, cz)
-    downNeighbor = @chunks.exists(cx, cy - 1, cz)
-    frontNeighbor = @chunks.exists(cx, cy, cz+1)
-    backNeighbor = @chunks.exists(cx, cy, cz-1)
-    chunk = new Grid(3, @chunkSize)
-    mx = @chunkSize[0]-1
-    my = @chunkSize[1]-1
-    mz = @chunkSize[2]-1
-    lastUpdate = now()
-    dirtySet = new Set()
-    # ondone = (->
-    #   @chunks.set(chunk, cx, cy, cz)
-    #   console.log("Chunk generation for " + cx + ', ' + cy + ', ' + cz + ' is finished. Adding dirty cubes (' + dirtySet.length + ')')
-    #   dirtySet.forEachPopAsync(((item) ->
-    #     #console.log("async ")
-    #     @updater.update('Dirty update', dirtySet.length, @dirty.length)
-    #     @addDirty(item)
-    #   ).bind(this), (->
-    #     console.log('Dirty update complete')
-    #     callback and callback()
-    #   ).bind(this))
-    # ).bind(this)
-
-    @chunks.set(chunk, cx, cy, cz)
-    worker = new NestedForWorker([[0,my+1], [0,mx+1], [0,mz+1]], ((y, x, z) ->
-      n = @noise.noise3D(
-        (x + cx * @chunkSize[0]) / @scale[0],
-        (y + cy * @chunkSize[1]) / @scale[1],
-        (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
-      chunk.set(n > 0, x, y, z)
-      @addDirty @getAbsolutePosition(x, y, z, cx, cy, cz)
-      if x == 0 and leftNeighbor
-        @addDirty(@getAbsolutePosition(mx, y, z, cx - 1, cy, cz))
-      else if x == mx and rightNeighbor
-        @addDirty(@getAbsolutePosition(0, y, z, cx + 1, cy, cz))
-      if z == 0 and backNeighbor
-        @addDirty(@getAbsolutePosition(x, y, mz, cx, cy, cz - 1))
-      else if z == mz and frontNeighbor
-        @addDirty(@getAbsolutePosition(x, y, 0, cx, cy, cz + 1))
-    ).bind(this), {
-      onpause: ((state) ->
-        @updater.update('generateChunk', "Chunk generation for " + cx + ', ' + cy + ', ' + cz + ' paused at ' + state.variables)
-      ).bind(this)
-      ondone: callback
-    })
-    worker.run()
-    # continueY = ((start) ->
-    #   @updater.update('continueY', 'continueY: (' + cx + ', ' + cy + ', ' + cz + ') ' + start + '-' + my)
-    #   for y in [start..my]
-    #     for x in [0..mx]
-    #       for z in [0..mz]
-    #     if y < my and now() - lastUpdate > 100
-    #       setTimeout((-> continueY(y + 1)), 100)
-    #       return
-    #   #callback and callback()
-    #   ondone()
-    # ).bind(this)
-    # continueY(0)
+    @chunkGenerationSet.add [cx, cy, cz]
 
   addDirty: (position) ->
+    @updater.update('addDirty', position)
     [x, y, z] = position
-    #@dirty.add position
+    @dirty.add position
+    return
+    @updater.update('addDirty/async', 'Doing ' + x + ', ' + y + ', ' + z)
     for dx in [0, 1]
       for dy in [0, 1]
         for dz in [0, 1]
           p = [x - dx, y - dy, z - dz]
           a = @getRelativePosition(p...)
-          if a isnt undefined and @blockNeedsUpdate(p...)
+          if a isnt undefined #and @blockNeedsUpdate(p...)
             @dirty.add p
 
   generateChunkGeometry: (cx, cy, cz) ->
-    throw 'This should not be called anymore'
+    #throw 'This should not be called anymore'
     chunk = @chunks.get(cx, cy, cz)
     #cubes = null
     geo = null
@@ -165,7 +121,7 @@ class World
         x + cx * @chunkSize[0],
         y + cy * @chunkSize[1],
         z + cz * @chunkSize[2])
-    ).bind(this), ([0, size-1] for size in @chunkSize)...)
+    ).bind(this), ([-1, size] for size in @chunkSize)...)
 
     geometry.computeFaceNormals()
     console.log('finished adding mesh')
@@ -175,8 +131,8 @@ class World
   createMesh: (geometry, cx, cy, cz) ->
     mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
-      #new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x00ff00})
+      #new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
+      new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x00ff00})
     )
     mesh.position.x = cx * @cubeSize * (@chunkSize[0])
     mesh.position.y = cy * @cubeSize * (@chunkSize[1])
@@ -219,7 +175,59 @@ class World
     }
 
   update: (delta) ->
-    @updater.update('updateGeometry', @updateGeometry.bind(this))
+    if not @generatingChunk? and @chunkGenerationSet.length > 0
+      @generatingChunk = @chunkGenerationSet.pop()
+      [cx, cy, cz] = @generatingChunk
+      console.log("Starting generation for chunk " + cx + ', ' + cy + ', ' + cz)
+      chunk = new Grid(3, @chunkSize)
+      mx = @chunkSize[0]-1
+      my = @chunkSize[1]-1
+      mz = @chunkSize[2]-1
+      lastUpdate = now()
+      dirtySet = new Set()
+
+      chunk.handleEvent('missing', ((x, y, z) ->
+        n = @noise.noise3D(
+          (x + cx * @chunkSize[0]) / @scale[0],
+          (y + cy * @chunkSize[1]) / @scale[1],
+          (z + cz * @chunkSize[2]) / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+        chunk.set(n > 0, x, y, z)
+      ).bind(this))
+
+      @chunks.set(chunk, cx, cy, cz)
+
+      stats =
+        added: 0
+        skipped: 0
+      worker = new NestedForWorker([[-1,my+2], [-1,mx+2], [-1,mz+2]], ((y, x, z) ->
+        @updater.update('generateChunk.worker', 'Position:' + [x, y, z] + '. Added: ' + stats.added + ', skipped: ' + stats.skipped)
+        position = @getAbsolutePosition(x, y, z, cx, cy, cz)
+        neighbors = @getNeighbors(position...)
+        expected = neighbors[0]
+        for n in neighbors
+          if n != expected
+            stats.added++
+            @addDirty position
+            return
+        stats.skipped++
+      ).bind(this), {
+        ondone: (->
+          @generatingChunk = null
+        ).bind(this)
+      })
+      worker.run()
+
+    #@updater.update('update/dirtyReport', 'Currently there are ' + @dirty.length + ' dirty blocks')
+    @updateGeometry()
+
+  getAllNeighbors: (x, y, z) ->
+    neighbors = []
+    for dx in [0, 1]
+      for dy in [0, 1]
+        for dz in [0, 1]
+          p = [x - dx, y - dy, z - dz]
+          neighbors.push @get(p...)
+    return neighbors
 
   getNeighbors: (x, y, z) ->
     neighbors = []
@@ -257,12 +265,22 @@ class World
         return true
     return false
 
-
+  refreshChunkGeometry: (cx, cy, cz) ->
+    geo = @geometry.get(cx, cy, cz)
+    return if not geo
+    g = geo.cubes.getGeometry()
+    if !geo.mesh or g != geo.mesh.geometry
+      @lod.remove geo.mesh
+      console.log( 'updating geometry')
+      @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
+    console.log('computing face normals for ' + cx + ', ' + cy + ', ' + cz)
+    g.computeFaceNormals()
+    g.normalsNeedUpdate = true
+    console.log('done')
 
 
   updateGeometry: ->
-    return if @dirty.length == 0
-    console.log('in updateGeometry')
+    return if @dirty.length == 0 or @updatingGeometry
     t = new Timer()
     #console.log('in updateGeometry', @dirty.length)
     # realDirty = new Set()
@@ -276,57 +294,52 @@ class World
 
     t.start('updateGeometry')
     #dirtyChunks = new Set()
+    @updatingGeometry = true
 
+    updateStart = now()
     skipCount = 0
-    @dirty.forEachPop(((p) ->
+    w = @dirty.forEachPopAsync(((p) ->
       if not @blockNeedsUpdate(p...)
         skipCount++
         return
-      [x, y, z] = p
-      a = @getRelativePosition(x, y, z)
-      geo = null
-      if not @geometry.exists(a.cx, a.cy, a.cz)
-        cubes = new MarchingCubes(@chunkSize, @cubeSize)
-        geo =
-          cubes: cubes
-        @geometry.set(geo, a.cx, a.cy, a.cz)
-      else
-        geo = @geometry.get(a.cx, a.cy, a.cz)
-      #geo = @geometry.get(a.cx, a.cy, a.cz)
-      #cubes = geo.cubes
-      #mesh = geo.mesh
-      #cubes.updateCube(@get.bind(this), x, y, z)
-      geo.cubes.updateCube(((x, y, z) ->
-        return @get(
-          x + a.cx * @chunkSize[0],
-          y + a.cy * @chunkSize[1],
-          z + a.cz * @chunkSize[2])
-      ).bind(this), a.x, a.y, a.z)
       @markClean(p...)
-      @dirtyChunks.add [a.cx, a.cy, a.cz]
-    ).bind(this))
-    #console.log('After popping: ', @dirty.length, 'blocks skipped:', skipCount)
+      @updater.update('dirtyPop', 'Dirty vertices left: ' + @dirty.length + '; skipped: ' + skipCount)
+      # doAsync((->
+      [x, y, z] = p
+      for dx in [0..1]
+        for dy in [0..1]
+          for dz in [0..1]
+            pos = [x - dx, y - dy, z - dz]
+            a = @getRelativePosition(pos...)
+            if a.chunk isnt undefined #and @blockNeedsUpdate(pos...)
+              #@dirty.add p
+              #a = @getRelativePosition(x, y, z)
+              geo = null
+              if not @geometry.exists(a.cx, a.cy, a.cz)
+                cubes = new MarchingCubes(@chunkSize, @cubeSize)
+                geo =
+                  cubes: cubes
+                @geometry.set(geo, a.cx, a.cy, a.cz)
+              else
+                geo = @geometry.get(a.cx, a.cy, a.cz)
 
-    if @dirtyChunks.length > 1 and not @stoppedAlready
-      @stoppedAlready = true
-      debugger
-
-    @updater.update('chunkRefresh', (->
+              geo.cubes.updateCube(((x, y, z) ->
+                return @get(
+                  x + a.cx * @chunkSize[0],
+                  y + a.cy * @chunkSize[1],
+                  z + a.cz * @chunkSize[2])
+              ).bind(this), a.x, a.y, a.z)
+              @dirtyChunks.add [a.cx, a.cy, a.cz]
+      # ).bind(this))
+    ).bind(this), (->
+      console.log('----- Chunk geometry generation complete in ' + (now() - updateStart))
+      @updatingGeometry = false
       @dirtyChunks.forEachPop(((c) ->
-        [cx, cy, cz] = c
-        geo = @geometry.get(cx, cy, cz)
-        g = geo.cubes.getGeometry()
-        if !geo.mesh or g != geo.mesh.geometry
-          @lod.remove geo.mesh
-          console.log( 'updating geometry')
-          @lod.add geo.mesh = @createMesh(g, cx, cy, cz)
-        console.log('computing face normals for ' + cx + ', ' + cy + ', ' + cz)
-        g.computeFaceNormals()
-        g.normalsNeedUpdate = true
-        console.log('done')
+        @refreshChunkGeometry(c...)
       ).bind(this))
     ).bind(this))
-    #console.log('Geometry update took ', t.stop('updateGeometry'))
+    w.cycle = 500
+
     return
     @updater.update('pulse', @dirty.length)
     return if @dirty.length == 0 or @updatingGeometry
@@ -425,7 +438,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         scale: 1 / 256
         multiplier: 1 / 4
         }])
-    @chunkSize = [32, 128, 32]
+    @chunkSize = [16, 128, 16]
     horizontalScale = 2
     verticalScale = 1
     @cubeSize = 4
@@ -437,7 +450,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @person = new FirstPerson(container, @camera)
 
     @world = new World(@chunkSize, @cubeSize, @scene)
-    @world.generateChunk(0, 0, 0)
+    #@world.generateChunk(0, 0, 0)
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
@@ -469,6 +482,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @selectedMesh = new THREE.Line(geometry, new THREE.LineBasicMaterial({color:0x0000ff}), THREE.Lines)
     @scene.add @selectedMesh
     $(document).keydown(((e) ->
+      last =
+        x: @selectedChunk.x
+        y: @selectedChunk.y
+        z: @selectedChunk.z
       switch e.keyCode
         when 74 # J
           @selectedChunk.x -= 1
@@ -485,10 +502,15 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         when 71 # G
           @world.generateChunk(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
           #@world.generateChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
-      @selectedMesh.position.x = @selectedChunk.x * @cubeSize * @chunkSize[0]
-      @selectedMesh.position.y = @selectedChunk.y * @cubeSize * @chunkSize[1]
-      @selectedMesh.position.z = @selectedChunk.z * @cubeSize * @chunkSize[2]
-      console.log(@selectedChunk.x + ', ' + @selectedChunk.y + ', ' + @selectedChunk.z)
+        when 82 # R
+          @world.refreshChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
+        when 86 # V
+          @world.generateChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
+      if last.x != @selectedChunk.x or last.y != @selectedChunk.y or last.z != @selectedChunk.z
+        @selectedMesh.position.x = @selectedChunk.x * @cubeSize * @chunkSize[0]
+        @selectedMesh.position.y = @selectedChunk.y * @cubeSize * @chunkSize[1]
+        @selectedMesh.position.z = @selectedChunk.z * @cubeSize * @chunkSize[2]
+        console.log(@selectedChunk.x + ', ' + @selectedChunk.y + ', ' + @selectedChunk.z)
     ).bind(this))
 
 
