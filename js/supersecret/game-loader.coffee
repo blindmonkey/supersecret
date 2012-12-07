@@ -39,7 +39,6 @@ window.lib.load = (names..., callback) ->
         lib.cache[name] = true
         allLoaded = true
         for n of lib.loading
-          console.log(name + ": still loading " + n)
           allLoaded = false
           break
         if allLoaded

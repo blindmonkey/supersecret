@@ -254,6 +254,8 @@ lib.export('MarchingCubes', class MarchingCubes
       a = []
       for face in polygons
         transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
+        # for kj in transformedFace
+        #   debugger if isNaN(kj)
         a.push(transformedFace)
         #console.log('Adding new face', transformedFace)
         @faceManager.addFace(transformedFace.concat([properties])...)

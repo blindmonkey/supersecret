@@ -1,7 +1,10 @@
+GridID = 0
+
 lib.load('events', ->
   lib.export('Grid', class Grid extends EventManagedObject
     constructor: (dim, opt_size) ->
       super()
+      @id = GridID++
       @dimensions = dim
       @grid = {}
       @isInfinite = false

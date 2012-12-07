@@ -34,8 +34,6 @@ lib.export('WorkerPool', class WorkerPool
       if not worker.running
         worker.start()
       workerEndTime = if worker.cycle then (start + worker.cycle) else cycleEndTime
-      if worker.synchronous
-        workerEndTime = Infinity
       worker.doWork(workerEndTime)
       if not worker.done
         @workers.push worker
@@ -43,7 +41,11 @@ lib.export('WorkerPool', class WorkerPool
     @scheduleNext()
 
   start: (worker) ->
-    @workers.push worker
+    if worker.synchronous
+      worker.start()
+      worker.doWork(Infinity)
+    else
+      @workers.push worker
 )
 
 

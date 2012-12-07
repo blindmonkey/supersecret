@@ -13,6 +13,9 @@ lib.export('format', (string, subs...) ->
       else if char == 'f'
         output += subs[argumentIndex++]
         formatString = null
+      else if char == 'r'
+        output += JSON.stringify(subs[argumentIndex++])
+        formatString = null
       else if char == 's'
         output += subs[argumentIndex++]
         formatString = null

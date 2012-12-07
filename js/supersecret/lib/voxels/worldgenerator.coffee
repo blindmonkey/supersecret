@@ -20,11 +20,11 @@ lib.export('WorldGenerator', class WorldGenerator
 
   getVoxel: (x, y, z) ->
     [cx, cy, cz] = getChunkCoords(@chunkSize, x, y, z)
-    [lx, ly, lz] = getLocalCoords(@chunkSize, x, y, z)
+    # [lx, ly, lz] = getLocalCoords(@chunkSize, x, y, z)
     n = @noise.noise3D(
-      lx / @scale[0],
-      ly / @scale[1],
-      lz / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
+      x / @scale[0],
+      y / @scale[1],
+      z / @scale[2]) - (y + cy * @chunkSize[1] - @seaLevel) / 32
 
     return if n < 0 then null else {
       smooth: true
