@@ -119,12 +119,15 @@ lib.load('events', ->
       key = @getCellKey(coords...)
       return key of @grid
 
+    keyExists: (key) ->
+      return key of @grid
+
     get: (coords...) ->
       if not @isInfinite and not @isValid(coords...)
         throw 'Coordinate is out of bounds'
-      if not @exists(coords...)
-        @fireEvent('missing', coords...)
       key = @getCellKey(coords...)
+      if not @keyExists(key)
+        @fireEvent('missing', coords...)
       return @grid[key]
 
     set: (data, coords...) ->
@@ -135,7 +138,7 @@ lib.load('events', ->
       key = @getCellKey(coords...)
       previousValue = @grid[key]
       @grid[key] = data
-      @fireEvent('set', data, coords...)
+      @fireEvent('set', previousValue, data, coords...)
       return previousValue
 
     exists: (coords...) ->

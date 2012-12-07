@@ -88,8 +88,6 @@ lib.export('FaceManager', class supersecret.FaceManager
     return face
 
   makeFace3: (face) ->
-    if not face.color
-      debugger
     new THREE.Face3(face.aIndex, face.bIndex, face.cIndex,
         face.normal,
         face.color)
@@ -100,8 +98,8 @@ lib.export('FaceManager', class supersecret.FaceManager
       a: a
       b: b
       c: c
-      normal: properties.normal
-      color: properties.color
+      normal: properties and properties.normal
+      color: properties and properties.color
     }
     faceId = @getFaceId(face)
     if faceId not of @faceIndex

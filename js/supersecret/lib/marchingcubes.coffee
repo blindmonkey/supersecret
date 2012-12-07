@@ -227,7 +227,7 @@ lib.export('MarchingCubes', class MarchingCubes
   getGeometry: ->
     return @faceManager.geometry
 
-  updateCube: (getter, x, y, z) ->
+  updateCube: (getter, x, y, z, properties) ->
     originalCorners = getCornerArray(getter, x, y, z)
     for c in originalCorners
       if c is undefined
@@ -256,7 +256,7 @@ lib.export('MarchingCubes', class MarchingCubes
         transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
         a.push(transformedFace)
         #console.log('Adding new face', transformedFace)
-        @faceManager.addFace(transformedFace.concat([{color: new THREE.Color(0xff0000)}])...)
+        @faceManager.addFace(transformedFace.concat([properties])...)
       @grid.set(a, x, y, z)
     else
       @remaining++
