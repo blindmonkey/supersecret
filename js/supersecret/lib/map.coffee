@@ -41,4 +41,18 @@ lib.export('Map', class Map
   forEachPop: (f) ->
     while @size > 0
       f(@pop()...)
+
+  forEachPopAsync: (f, callback) ->
+    worker = new WhileWorker({
+      condition: (->
+        return @size > 0
+      ).bind(this)
+      work: (->
+        f(@pop())
+      ).bind(this)
+    }, {
+      ondone: callback
+    })
+    worker.run()
+    return worker
 )

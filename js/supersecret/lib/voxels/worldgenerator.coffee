@@ -3,7 +3,7 @@ lib.load('noisegenerator', 'voxels/coords')
 lib.export('WorldGenerator', class WorldGenerator
   constructor: (chunkSize) ->
     @chunkSize = chunkSize
-    @seaLevel = @chunkSize[1] / 2
+    @seaLevel = @chunkSize[1] / 4
     @scale = [2, 1, 2]
     @noise = new NoiseGenerator(new SimplexNoise(), [{
         scale: 1 / 64
@@ -13,10 +13,10 @@ lib.export('WorldGenerator', class WorldGenerator
       }, {
          scale: 1 / 40
          multiplier: .65
-      } #, {
-      #   scale: 1 / 256
-      #   multiplier: 1 / 4
-      # }, {
+      }, # {
+      #   scale: 1 / 30
+      #   multiplier: .6
+      #} #, {
       #   scale: 1 / 256
       #   multiplier: 1 / 4
       #   }

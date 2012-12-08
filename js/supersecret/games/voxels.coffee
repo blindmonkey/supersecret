@@ -176,16 +176,18 @@ lib.load('events', ->
       return if not @hasDirty() or @updating
       console.log('An update has begun')
       @updating = true
-      @dirty.forEach(((worldCoords) ->
+      @dirty.forEachPop(((worldCoords) ->
         dirty = @isDirty(worldCoords...)
         @setClean(worldCoords...)
         return if not dirty
         if @hasDifferentNeighbors(booleanGetter(getter), worldCoords...)
           @generateVoxelGeometry(getter, worldCoords...)
       ).bind(this))
-      @dirtyChunks.forEach(((chunkCoords) ->
-        @dirtyChunks.remove chunkCoords
-        @refreshChunkGeometry(chunkCoords...)
+      @updater.update('dirtyChunks/update', (->
+        @dirtyChunks.forEach(((chunkCoords) ->
+          @dirtyChunks.remove chunkCoords
+          @refreshChunkGeometry(chunkCoords...)
+        ).bind(this))
       ).bind(this))
       @updating = false
       console.log('the update is complete. Dirty size: ' + @dirty.size + ' dirty chunk size: ' + @dirtyChunks.length)
@@ -421,7 +423,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         scale: 1 / 256
         multiplier: 1 / 4
         }])
-    @chunkSize = [16, 64, 16]
+    @chunkSize = [16, 128, 16]
     horizontalScale = 2
     verticalScale = 1
     @cubeSize = 4
@@ -435,8 +437,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     chunks = []
     @world = new World(@chunkSize, @cubeSize, @scene)
-    for x in [-32..32]
-      for z in [-32..32]
+    for x in [-64..64]
+      for z in [-64..64]
         chunks.push [x, 0, z]
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
