@@ -1,21 +1,22 @@
 lib.load('set', ->)
 
 lib.export('FaceManager', class supersecret.FaceManager
-  constructor: (faceBufferCount) ->
-    @faceBufferCount = faceBufferCount
+  constructor: (faceBufferCount, materials) ->
+    @faceBufferCount = faceBufferCount || 100
+    @materials = materials
     @faces = []
     @vectors = []
     @vectorIndex = {}
     @faceIndex = {}
     @facePool = null
-    if faceBufferCount
-      @nullFace = new THREE.Face3(0, 0, 0)
-      @mesh = new THREE.Mesh()
-      @regenerateGeometry()
+    @nullFace = new THREE.Face3(0, 0, 0)
+    @mesh = new THREE.Mesh()
+    @regenerateGeometry()
     @addVector([0, 0, 0])
 
   regenerateGeometry: ->
     newGeometry = new THREE.Geometry()
+    newGeometry.materials = @materials
     newGeometry.dynamic = true
     @facePool = new Set()
     offset = if @geometry then @geometry.faces.length else 0
@@ -90,7 +91,8 @@ lib.export('FaceManager', class supersecret.FaceManager
   makeFace3: (face) ->
     new THREE.Face3(face.aIndex, face.bIndex, face.cIndex,
         face.normal,
-        face.color)
+        face.color,
+        face.materialIndex)
 
   addFace: (a, b, c, properties, doubleSided) ->
     [aId, bId, cId] = (@getVectorId(v) for v in [a, b, c])
@@ -99,7 +101,8 @@ lib.export('FaceManager', class supersecret.FaceManager
       b: b
       c: c
       normal: properties and properties.normal
-      color: properties and properties.color
+      color: properties and properties.color or undefined #and new THREE.Color(properties.color)
+      materialIndex: properties and properties.materialIndex
     }
     faceId = @getFaceId(face)
     if faceId not of @faceIndex
@@ -111,6 +114,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       @geometry.faces[emptyFaceIndex] = @makeFace3(face)
       @geometry.verticesNeedUpdate = true
       @geometry.elementsNeedUpdate = true
+      @geometry.facesNeedUpdate = true
     if doubleSided
       @addFace(a, c, b)
 

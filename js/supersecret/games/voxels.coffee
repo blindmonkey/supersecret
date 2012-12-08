@@ -42,11 +42,10 @@ localGetter = (getter, chunkSize, chunkX, chunkY, chunkZ) ->
 WorldGeometry = null
 lib.load('events', ->
   class WorldGeometry extends EventManagedObject
-    constructor: (chunkSize, cubeSize, scene) ->
+    constructor: (chunkSize, cubeSize, materials) ->
       super()
       @chunkSize = chunkSize
       @cubeSize = cubeSize
-      @scene = scene
       @geometry = new Grid(3, [Infinity, Infinity, Infinity])
       @cache = new Grid(3, [Infinity, Infinity, Infinity])
       @neighborCache = new Grid(3, [Infinity, Infinity, Infinity])
@@ -139,7 +138,7 @@ lib.load('events', ->
         return
       # debugger
       geometry =
-        cubes: new MarchingCubes(@chunkSize, @cubeSize)
+        cubes: new MarchingCubes(@chunkSize, @cubeSize, @materials)
       console.log format('Setting geometry for chunk %d, %d, %d', chunkX, chunkY, chunkZ)
       @geometry.set(geometry, chunkX, chunkY, chunkZ)
 
@@ -191,19 +190,6 @@ lib.load('events', ->
       @updating = false
       console.log('the update is complete. Dirty size: ' + @dirty.size + ' dirty chunk size: ' + @dirtyChunks.length)
 
-    createMesh: (geometry, cx, cy, cz) ->
-      mesh = new THREE.Mesh(
-        geometry,
-        #new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors, wireframe: true})
-        new THREE.MeshPhongMaterial({ vertexColors: THREE.FaceColors}) # {color: 0x00ff00, ambient: 0x00ff00})
-      )
-      mesh.position.x = cx * @cubeSize * (@chunkSize[0])
-      mesh.position.y = cy * @cubeSize * (@chunkSize[1])
-      mesh.position.z = cz * @cubeSize * (@chunkSize[2])
-      console.log('Mesh has ' + mesh.geometry.faces.length)
-      # @scene.add mesh
-      return mesh
-
 
 
     generateVoxelGeometry: (getter, worldX, worldY, worldZ) ->
@@ -218,10 +204,11 @@ lib.load('events', ->
       #   getter(wx, wy, wz)
       # ).bind(this), x, y, z)
       ps = getter(worldX, worldY, worldZ)
-      properties =
-        color: if ps and ps.color then new THREE.Color(ps.color) else null
+      properties = undefined
+        #color: if ps and ps.color then new THREE.Color(ps.color) else undefined
       geometryChunk.cubes.updateCube(
-        localGetter(booleanGetter(getter), @chunkSize, cx, cy, cz), x, y, z, properties)
+        localGetter(booleanGetter(getter), @chunkSize, cx, cy, cz),
+        x, y, z, properties)
       @dirtyChunks.add [cx, cy, cz]
 
 
@@ -232,14 +219,15 @@ lib.load('events', ->
       @dirtyChunks.remove([chunkX, chunkY, chunkZ])
       geometry = @geometry.get(chunkX, chunkY, chunkZ)
       maybeNewGeometry = geometry.cubes.getGeometry()
+      maybeNewGeometry.computeCentroids()
       maybeNewGeometry.computeFaceNormals()
       maybeNewGeometry.normalsNeedUpdate = true
       if maybeNewGeometry != geometry.geometry
         console.log('New geometry!')
         geometry.geometry = maybeNewGeometry
-        oldMesh = geometry.mesh
-        geometry.mesh = @createMesh(geometry.geometry, chunkX, chunkY, chunkZ)
-        @fireEvent('geometry-update', oldMesh, geometry.mesh, chunkX, chunkY, chunkZ)
+        # oldMesh = geometry.mesh
+        # geometry.mesh = @createMesh(geometry.geometry, chunkX, chunkY, chunkZ)
+        @fireEvent('geometry-update', maybeNewGeometry, chunkX, chunkY, chunkZ)
 )
 
 
@@ -261,15 +249,28 @@ class World
     @chunkSize = chunkSize
     @cubeSize = cubeSize
     @scene = scene
+    @meshes = new Grid(3, [Infinity, Infinity, Infinity])
 
     # @dirty = new Set()
     # @geometry = new Grid(3, [Infinity, Infinity, Infinity])
 
-    @geometry = new WorldGeometry(@chunkSize, @cubeSize, @scene)
-    @geometry.handleEvent('geometry-update', ((oldMesh, mesh, chunkX, chunkY, chunkZ) ->
-      if oldMesh
-        @scene.remove mesh
+    @materials = [
+      new THREE.MeshNormalMaterial( { shading: THREE.SmoothShading } ),
+      new THREE.MeshDepthMaterial(),
+      new THREE.MeshBasicMaterial( { color: 0x0066ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false } ),
+      #new THREE.MeshBasicMaterial( { color: 0xffaa00, wireframe: true } ),
+      new THREE.MeshLambertMaterial( { color: 0xdddddd, shading: THREE.FlatShading } ),
+      new THREE.MeshLambertMaterial( { color: 0xdddddd, shading: THREE.SmoothShading } ),
+      new THREE.MeshPhongMaterial( { ambient: 0x030303, color: 0xdddddd, specular: 0x009900, shininess: 30, shading: THREE.FlatShading } ),
+      new THREE.MeshPhongMaterial( { ambient: 0x030303, color: 0xdddddd, specular: 0x009900, shininess: 30, shading: THREE.SmoothShading } )
+    ]
+
+    @geometry = new WorldGeometry(@chunkSize, @cubeSize, @materials)
+    @geometry.handleEvent('geometry-update', ((geometry, chunkX, chunkY, chunkZ) ->
+      mesh = @meshes.get(chunkX, chunkY, chunkZ)
+      @scene.remove mesh if mesh
       console.log('Got geometry update for ', chunkX, chunkY, chunkZ)
+      mesh = @createMesh(geometry, chunkX, chunkY, chunkZ)
       @scene.add mesh
     ).bind(this))
 
@@ -355,6 +356,24 @@ class World
   refreshChunkGeometry: (cx, cy, cz) ->
     @geometry.refreshChunkGeometry(cx, cy, cz)
 
+  createMesh: (geometry, cx, cy, cz) ->
+    mesh = new THREE.Mesh(
+      geometry,
+      #new THREE.MeshFaceMaterial()
+      #new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors, wireframe: true})
+      new THREE.MeshPhongMaterial({ vertexColors: THREE.FaceColors})
+      #new THREE.MeshNormalMaterial({color: 0xff0000})
+      #new THREE.MeshBasicMaterial({wireframe: true})
+      #new THREE.MeshPhongMaterial({color: 0x00ff00, ambient: 0x0000ff}) # {color: 0x00ff00, ambient: 0x00ff00})
+    )
+    mesh.position.x = cx * @cubeSize * (@chunkSize[0])
+    mesh.position.y = cy * @cubeSize * (@chunkSize[1])
+    mesh.position.z = cz * @cubeSize * (@chunkSize[2])
+    mesh.frustumCulled = false
+    console.log('Mesh has ' + mesh.geometry.faces.length)
+    # @scene.add mesh
+    return mesh
+
 
   set: (data, x, y, z) ->
     # THIS WILL NOT WORK
@@ -415,7 +434,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @person.updateCamera()
 
     @world = new World(@chunkSize, @cubeSize, @scene)
-    #@world.generateChunk(0, 0, 0)
+    for x in [-2..2]
+      for z in [-2..2]
+        @world.generateChunk(x, 0, z)
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
@@ -531,7 +552,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   initGeometry: ->
     @scene.add m = new THREE.Mesh(
       new THREE.SphereGeometry(1, 16, 16),
-      new THREE.LineBasicMaterial({color: 0xff0000})
+      #new THREE.LineBasicMaterial({color: 0xff0000})
+      new THREE.MeshPhongMaterial({color: 0xff0000})
       )
     m.position.x = 5
     m.position.y = 5
@@ -541,25 +563,28 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   initLights: ->
     @scene.add new THREE.AmbientLight(0x505050)
     light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.x = 1
-    light.position.y = 1
-    light.position.z = 1
+    light.position.x = 0
+    light.position.y = 50
+    light.position.z = 0
     @scene.add light
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.x = -1
-    light.position.y = 1
-    light.position.z = -1
-    @scene.add light
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.x = -1
-    light.position.y = -1
-    light.position.z = -1
-    @scene.add light
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.x = 1
-    light.position.y = -1
-    light.position.z = 1
-    @scene.add light
+    @scene.add new THREE.DirectionalLightHelper(light, 1, 5)
+    DEBUG.expose('dlight1', light)
+    # @scene.add light
+    # light = new THREE.DirectionalLight(0xffffff, .6)
+    # light.position.x = -1
+    # light.position.y = 1
+    # light.position.z = -1
+    # @scene.add light
+    # light = new THREE.DirectionalLight(0xffffff, .6)
+    # light.position.x = -1
+    # light.position.y = -1
+    # light.position.z = -1
+    # @scene.add light
+    # light = new THREE.DirectionalLight(0xffffff, .6)
+    # light.position.x = 1
+    # light.position.y = -1
+    # light.position.z = 1
+    # @scene.add light
 
   render: (delta) ->
     @world.update(delta)
