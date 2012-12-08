@@ -84,12 +84,19 @@ supersecret.Game = class Voxels2Game
       @grid.set(n > 0, coords...)
     ).bind(this)
 
-    @grid.handleEvent('missing', ((coords...) ->
-      @generateXY(coords...)
-    ).bind(this))
+    #@grid.handleEvent('missing', ((coords...) ->
+      #@generateXY(coords...)
+    #).bind(this))
     #@grid.forEachInRange(((coords...) ->
       #@generateXY(coords...)
     #).bind(this), [-10, 10], [-10, 10])
+    
+    @grid.set(true, -1, 0)
+    @grid.set(false, 0, 0)
+    @grid.set(true,  1, 0)
+    @grid.set(true, -1, 1)
+    @grid.set(true,  0, 1)
+    @grid.set(true,  1, 1)
 
     @camera =
       x: 0
@@ -149,8 +156,8 @@ supersecret.Game = class Voxels2Game
         [[true, false, false, false], [
           [0, 0]
           [0.5, 0]
-          [0.5, 0.25]
-          [0.25, 0.5]
+          #[0.5, 0.25]
+          #[0.25, 0.5]
           [0, 0.5]
         ]]
         [[true, true, false, false], [
@@ -163,7 +170,7 @@ supersecret.Game = class Voxels2Game
           [0, 0]
           [1, 0]
           [1, 0.5]
-          [0.5, 0.5]
+          #[0.5, 0.5]
           [0.5, 1]
           [0, 1]
         ]]

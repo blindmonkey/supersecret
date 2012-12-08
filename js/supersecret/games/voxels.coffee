@@ -433,14 +433,19 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @person = new FirstPerson(container, @camera)
     @person.updateCamera()
 
+    chunks = []
     @world = new World(@chunkSize, @cubeSize, @scene)
-    for x in [-2..2]
-      for z in [-2..2]
-        @world.generateChunk(x, 0, z)
+    for x in [-32..32]
+      for z in [-32..32]
+        chunks.push [x, 0, z]
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
-    #
+    chunks.sort((a, b) ->
+        return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) < Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])
+    )
+    console.log(chunks)
+    (@world.generateChunk(c...) for c in chunks)
 
     @selectedChunk =
       x: 0
