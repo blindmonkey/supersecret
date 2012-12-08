@@ -441,8 +441,12 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
+
+    distance3 = (x, y, z) ->
+      return Math.sqrt(x*x + y*y + z*z)
+
     chunks.sort((a, b) ->
-        return Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) < Math.sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])
+        return distance3(a...) - distance3(b...)
     )
     console.log(chunks)
     (@world.generateChunk(c...) for c in chunks)
