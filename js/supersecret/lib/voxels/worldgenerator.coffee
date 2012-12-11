@@ -13,13 +13,13 @@ lib.export('WorldGenerator', class WorldGenerator
       }, {
          scale: 1 / 40
          multiplier: .65
-      }, # {
-      #   scale: 1 / 30
-      #   multiplier: .6
-      #} #, {
-      #   scale: 1 / 256
-      #   multiplier: 1 / 4
-      #   }
+      }, {
+         scale: 1 / 30
+         multiplier: .6
+      }, {
+        scale: 1 / 64
+        multiplier: .4
+        }
     ])
 
   getVoxel: (x, y, z) ->

@@ -20,9 +20,10 @@ lib.export('Map', class Map
     return @data[generateId(key)]
 
   removeById: (id) ->
-    delete @data[id]
-    delete @dataIndex[id]
-    @size--
+    if id of @data
+      delete @data[id]
+      delete @dataIndex[id]
+      @size--
 
   remove: (key) ->
     @removeById generateId(key)

@@ -423,7 +423,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         scale: 1 / 256
         multiplier: 1 / 4
         }])
-    @chunkSize = [16, 128, 16]
+    @chunkSize = [16, 64, 16]
     horizontalScale = 2
     verticalScale = 1
     @cubeSize = 4
@@ -439,7 +439,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @world = new World(@chunkSize, @cubeSize, @scene)
     for x in [-64..64]
       for z in [-64..64]
-        chunks.push [x, 0, z]
+        for y in [-0..0]
+          chunks.push [x, y, z]
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
