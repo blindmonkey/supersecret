@@ -211,6 +211,8 @@ getCornerArray = (getter, coords...) ->
     getter(x + 1, y + 1, z + 1)
   ]
 
+  [x, y] = [1, 2]
+
 
 lib.export('MarchingCubes', class MarchingCubes
   constructor: (size, scale, materials) ->
@@ -250,7 +252,7 @@ lib.export('MarchingCubes', class MarchingCubes
       if a
         faces = ({a:f[0], b:f[1], c:f[2]} for f in a)
         #console.log('Removing faces', faces)
-        @faceManager.removeFaces(faces...)
+        # @faceManager.removeFaces(faces...)
       a = []
       for face in polygons
         transformedFace = @getTransformedFace(transform, face, [x * @scale, y * @scale, z * @scale])
