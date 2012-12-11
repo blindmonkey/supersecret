@@ -11,8 +11,8 @@ lib.load(
   'set',
   'updater',
 
-  'voxels/coords',
-  'voxels/worldgenerator',
+  'voxel/coords',
+  'voxel/worldgenerator',
    -> supersecret.Game.loaded = true)
 
 
@@ -165,7 +165,7 @@ lib.load('events', ->
           callback and callback()
         ).bind(this)
       })
-      #worker.synchronous = true
+      worker.synchronous = @synchronous
       worker.run()
       console.log(@dirty.size + ' dirty pieces')
       #@refreshChunkGeometry(chunkX, chunkY, chunkZ)
@@ -215,7 +215,8 @@ lib.load('events', ->
 
 
     refreshChunkGeometry: (chunkX, chunkY, chunkZ) ->
-      #geometry = geo.cubes.generateGeometry(, ([-1, size] for size in @chunkSize)...)
+      #geometry = geo.cubes.generateGeometry(@getter.bind(this), ([-1, size] for size in @chunkSize)...)
+      # return
       # debugger
       console.log format('refreshing geometry for %d, %d, %d', chunkX, chunkY, chunkZ)
       @dirtyChunks.remove([chunkX, chunkY, chunkZ])
@@ -437,10 +438,13 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     chunks = []
     @world = new World(@chunkSize, @cubeSize, @scene)
+<<<<<<< HEAD
     for x in [-64..64]
       for z in [-64..64]
         for y in [-0..0]
           chunks.push [x, y, z]
+=======
+>>>>>>> d479bf5bc1b43d4ae6046de977d604a71b03ebd9
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
@@ -513,6 +517,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
           @world.generateChunk(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
           #@world.generateChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
         when 82 # R
+          debugger if doDebug
           @world.refreshChunkGeometry(@selectedChunk.x, @selectedChunk.y, @selectedChunk.z)
         when 86 # V
           @world.synchronous = not @world.synchronous
@@ -532,6 +537,18 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
           doDebug = not doDebug
           if doDebug
             console.log format('Debug mode %s', if doDebug then 'enabled' else 'disabled')
+        when 103 # Num7
+          [cx, cy, cz] = getChunkCoords(@chunkSize, @selectedCoord.x, @selectedCoord.y, @selectedCoord.z)
+          [lx, ly, lz] = getLocalCoords(@chunkSize, @selectedCoord.x, @selectedCoord.y, @selectedCoord.z)
+          chunk = @world.chunks.get(cx, cy, cz)
+          if not chunk
+            console.log('no chunk')
+            break
+          console.log('setting')
+          chunk.set({smooth: true, materialIndex: 0}, lx, ly, lz)
+          @world.geometry.generateVoxelGeometry(@world.getter.bind(@world), @selectedCoord.x, @selectedCoord.y, @selectedCoord.z)
+          console.log('refreshing')
+          @world.geometry.refreshChunkGeometry(cx, cy, cz)
         when 101 # Num5
           debugger if doDebug
           @world.geometry.generateVoxelGeometry(@world.getter.bind(@world), @selectedCoord.x, @selectedCoord.y, @selectedCoord.z)
@@ -598,8 +615,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     # light.position.z = 1
     # @scene.add light
 
-  render: (delta) ->
+  update: (delta) ->
     @world.update(delta)
     #@world.lod.update(@camera)
     @person.update(delta)
-    @renderer.renderer.render(@scene, @camera)
+    # @renderer.renderer.render(@scene, @camera)

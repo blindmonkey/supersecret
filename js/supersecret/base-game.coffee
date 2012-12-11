@@ -2,6 +2,8 @@
 
 supersecret.BaseGame = class BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
+    @preinit and @preinit(container, width, height)
+
     @renderer = new supersecret.Renderer(container, width, height)
     @scene = opt_scene or new THREE.Scene()
     @camera = opt_camera or @initCamera(width, height)
@@ -24,11 +26,15 @@ supersecret.BaseGame = class BaseGame
     @initGeometry and @initGeometry()
     @initLights and @initLights()
 
+    @postinit and @postinit()
+
   initCamera: (width, height) ->
-    VIEW_ANGLE = @viewAngle or 45
+    params = getQueryParams()
+
+    VIEW_ANGLE = parseFloat(params.viewAngle) or parseFloat(params.fov) or 45
     ASPECT = width / height
-    NEAR = 0.1
-    FAR = 10000
+    NEAR = parseFloat(params.cameraNear) or 0.1
+    FAR = parseFloat(params.cameraFar) or 10000
 
     camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR)
     DEBUG.expose('camera', camera)
@@ -36,6 +42,10 @@ supersecret.BaseGame = class BaseGame
     @scene.add camera
 
     return camera
+
+  render: (delta) ->
+    @update and @update(delta)
+    @renderer.renderer.render(@scene, @camera)
 
   start: ->
     if not @handle
