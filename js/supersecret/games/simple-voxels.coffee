@@ -1,43 +1,16 @@
 lib.load(
   'firstperson'
   'grid'
-  'voxel-renderer'
-  -> supersecret.Game.loaded = true)
+  'voxel/voxel-renderer'
+  'voxel/renderers/cube'
+  'voxel/renderers/march'
+  ->
+    supersecret.Game.loaded = true
+    mainRenderer = MarchingCubes
+)
 
 
-flipFaces = (faces...) ->
-  newFaces = []
-  for face in faces
-    [a, c, b] = face
-    newFaces.push [a, b, c]
-  return newFaces
-
-class CubeRenderer
-  @faces:
-    front: [[[-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5]]
-            [[-0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]]]
-    above: [[[-0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [0.5, 0.5, -0.5]]
-            [[-0.5, 0.5, -0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]]]
-    right: [[[0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5]]
-            [[0.5, -0.5, -0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5]]]
-  @render: (neighbors) ->
-    faces = []
-    if neighbors[0] and not neighbors[1]
-      faces.push(CubeRenderer.faces.front...)
-    if not neighbors[0] and neighbors[1]
-      faces.push(flipFaces(CubeRenderer.faces.front...)...)
-    if neighbors[0] and not neighbors[2]
-      faces.push(CubeRenderer.faces.above...)
-    if not neighbors[0] and neighbors[2]
-      faces.push(flipFaces(CubeRenderer.faces.above...)...)
-    if neighbors[0] and not neighbors[4]
-      faces.push(CubeRenderer.faces.right...)
-    if not neighbors[0] and neighbors[4]
-      faces.push(flipFaces(CubeRenderer.faces.right...)...)
-
-    if faces.length
-      return [faces, undefined]
-    return null
+mainRenderer = null
 
 
 supersecret.Game = class NewGame extends supersecret.BaseGame
@@ -81,7 +54,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       for dx in [0..1]
         for dy in [0..1]
           for dz in [0..1]
-            @voxelRenderer.updateVoxel(x-dx, y-dy, z-dz, CubeRenderer)
+            @voxelRenderer.updateVoxel(x-dx, y-dy, z-dz, mainRenderer)
       updateMesh()
     )
 
@@ -109,7 +82,12 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         when 79 # O
           @sel.y++
         when 82 # R
-          @voxelRenderer.updateVoxel(@sel.x, @sel.y, @sel.z, CubeRenderer)
+          @voxelRenderer.updateVoxel(@sel.x, @sel.y, @sel.z, mainRenderer)
+        when 84 # T
+          #@voxelRenderer.updateVoxel(@sel.x, @sel.y, @sel.z, CubeRenderer)
+          mainRenderer = CubeRenderer
+        when 89 # Y
+          mainRenderer = MarchingCubes
         when 13
           @grid.set(true, @sel.x, @sel.y, @sel.z)
       @sphere.position.x = @sel.x * scale

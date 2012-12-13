@@ -438,13 +438,6 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     chunks = []
     @world = new World(@chunkSize, @cubeSize, @scene)
-<<<<<<< HEAD
-    for x in [-64..64]
-      for z in [-64..64]
-        for y in [-0..0]
-          chunks.push [x, y, z]
-=======
->>>>>>> d479bf5bc1b43d4ae6046de977d604a71b03ebd9
     #@world.generateChunkGeometry(0, 0, 0)
     #@world.generateChunk(1, 0, 0)
     #@world.generateChunkGeometry(1, 0, 0)
