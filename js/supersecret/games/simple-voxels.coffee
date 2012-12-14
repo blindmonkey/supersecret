@@ -35,7 +35,6 @@ createWorldGeometryClass = ->
       return if @dirty.length == 0
       console.log('UPDATE')
       @dirty.forEachPop(([x, y, z, properties]) =>
-        console.log('PROPERTIES', properties)
         voxel = @getter(x, y, z)
         if not voxel?
           voxel = undefined
@@ -68,7 +67,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     mainRenderer = MarchingCubes
     @person = new FirstPerson(container, @camera)
 
-    @chunkSize = [64, 64, 64]
+    @chunkSize = [16, 64, 16]
     @cubeSize = 5
     @grid = new Grid(3, @chunkSize)
     @grid.handleEvent('missing', (x, y, z) =>
@@ -116,11 +115,19 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     doGenerate = =>
       return if generated
       noise = new SimplexNoise()
-      worker = new NestedForWorker([[0, 63], [0, 63], [0, 63]], (y, x, z) =>
+      worker = new NestedForWorker([[1, @chunkSize[1]-2], [1, @chunkSize[0]-2], [1, @chunkSize[2]-2]], (y, x, z) =>
         n = noise.noise3D(x / 32, y / 32, z / 32)
         v = null
-        if n > 0
+        if n > .8
           v = {color: 0xff0000}
+        else if n > .6
+          v = {color: 0x00ff00}
+        else if n > .4
+          v = {color: 0x0000ff}
+        else if n > .2
+          v = {color: 0xff00ff}
+        else if n > 0
+          v = {color: 0xffff00}
         @grid.set(v, x, y, z)
       )
       worker.cycle = 50
@@ -178,6 +185,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
           # @grid.set(true, @sel.x, @sel.y, @sel.z)
         when 80 # P
           @grid.set(null, @sel.x, @sel.y, @sel.z)
+      console.log('Current color: ' + currentColor.toString(16))
       @sphere.position.x = @sel.x * @cubeSize
       @sphere.position.y = @sel.y * @cubeSize
       @sphere.position.z = @sel.z * @cubeSize
