@@ -41,15 +41,15 @@ lib.export('VoxelRenderer', class VoxelRenderer
     return true if not arraysEqual(voxel.neighbors, neighbors)
     return false
 
-  updateVoxel: (x, y, z, renderer) ->
+  updateVoxel: (x, y, z, renderer, properties) ->
     if @isValid(x, y, z) and not @isDirty(x, y, z, renderer)
-      console.log('Voxel #{x}, #{y}, #{z} didn\'t need an update')
+      # console.log('Voxel #{ x }, #{ y }, #{ z } didn\'t need an update')
       return
     if @isValid(x, y, z) and @grid.exists(x, y, z)
       voxel = @grid.get(x, y, z)
 
     if voxel and voxel.faces
-      console.log('Removing faces!!!')
+      # console.log('Removing faces!!!')
       facesToRemove = []
       for simpleFace in voxel.faces
         face =
@@ -60,13 +60,15 @@ lib.export('VoxelRenderer', class VoxelRenderer
       @faces.removeFaces(facesToRemove...)
 
     neighbors = getCornerArray(@getter, x, y, z)
+    console.log(neighbors)
     for neighbor in neighbors
       if neighbor is undefined
         return
 
     data = renderer.render(neighbors)
     if data?
-      [faces, properties] = data
+      #[faces, properties] = data
+      faces = data
       cacheVoxel =
         neighbors: neighbors
         renderer: renderer
@@ -75,7 +77,7 @@ lib.export('VoxelRenderer', class VoxelRenderer
         newFace = []
         for [fx, fy, fz] in face
           newFace.push [fx * @scale + x * @scale, fy * @scale + y * @scale, fz * @scale + z * @scale]
-        console.log(newFace)
+        #console.log(newFace)
         realFaces.push newFace
         @faces.addFace(newFace.concat([properties])...)
       cacheVoxel.faces = realFaces

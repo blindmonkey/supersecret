@@ -228,7 +228,7 @@ lib.export('MarchingCubes', class MarchingCubes
       for face in polygons
         transformedFace = MarchingCubes.getTransformedFace(transform, face)
         a.push(transformedFace)
-      return [a, undefined]
+      return a
 
     return null
 

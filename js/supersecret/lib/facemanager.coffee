@@ -16,7 +16,8 @@ lib.export('FaceManager', class supersecret.FaceManager
 
   regenerateGeometry: ->
     newGeometry = new THREE.Geometry()
-    newGeometry.materials = @materials
+    if @materials
+      newGeometry.materials = @materials
     newGeometry.dynamic = true
     @facePool = new Set()
     offset = if @geometry then @geometry.faces.length else 0
@@ -101,7 +102,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       b: b
       c: c
       normal: properties and properties.normal
-      color: properties and properties.color or undefined #and new THREE.Color(properties.color)
+      color: (properties and properties.color and new THREE.Color(properties.color)) or undefined
       materialIndex: properties and properties.materialIndex
     }
     faceId = @getFaceId(face)

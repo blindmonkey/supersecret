@@ -1,13 +1,60 @@
 lib.load(
+  'events'
   'firstperson'
   'grid'
+  'set'
+  'worker'
+  'voxel/coords'
   'voxel/voxel-renderer'
   'voxel/renderers/cube'
   'voxel/renderers/march'
   ->
     supersecret.Game.loaded = true
     mainRenderer = MarchingCubes
+    createWorldGeometryClass()
 )
+
+WorldGeometry = null
+createWorldGeometryClass = ->
+  WorldGeometry = class WorldGeometry extends EventManagedObject
+    constructor: (getter, chunkSize, cubeSize) ->
+      super()
+      @chunkSize = chunkSize
+      @cubeSize = cubeSize
+      @getter = getter
+      @geometry = null
+      @voxelRenderer = new VoxelRenderer(
+        (x, y, z) =>
+          return getter(x, y, z)?
+        ,
+        chunkSize,
+        cubeSize, undefined)
+      @dirty = new Set()
+
+    update: (delta) ->
+      return if @dirty.length == 0
+      console.log('UPDATE')
+      @dirty.forEachPop(([x, y, z, properties]) =>
+        console.log('PROPERTIES', properties)
+        voxel = @getter(x, y, z)
+        if not voxel?
+          voxel = undefined
+        else
+          console.log(voxel)
+        @voxelRenderer.updateVoxel(x, y, z, MarchingCubes, properties)
+      )
+      newGeometry = @voxelRenderer.geometry()
+      newGeometry.computeFaceNormals()
+      newGeometry.computeBoundingBox()
+      newGeometry.computeBoundingSphere()
+      newGeometry.normalsNeedUpdate = true
+      newGeometry.facesNeedUpdate = true
+      newGeometry.colorsNeedUpdate = true
+      if @geometry != newGeometry
+        @fireEvent('geometry-update', @geometry = newGeometry)
+
+    updateVoxel: (x, y, z, properties) ->
+      @dirty.add([x, y, z, properties])
 
 
 mainRenderer = null
@@ -17,46 +64,67 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
 
   postinit: ->
+    console.log('near plane: ' + @camera.near)
+    mainRenderer = MarchingCubes
     @person = new FirstPerson(container, @camera)
-    @grid = new Grid(3, [64, 64, 64])
-    scale = 5
+
+    @chunkSize = [64, 64, 64]
+    @cubeSize = 5
+    @grid = new Grid(3, @chunkSize)
     @grid.handleEvent('missing', (x, y, z) =>
-      @grid.set_(false, x, y, z)
+      @grid.set_(null, x, y, z)
     )
 
-    @voxelRenderer = new VoxelRenderer(
-      (x, y, z) =>
-        if 0 <= x < @grid.size[0] and 0 <= y < @grid.size[1] and 0 <= z < @grid.size[2]
-          return @grid.get(x, y, z)
-        return undefined
-      ,
-      @grid.size,
-      scale, [])
+    DEBUG.expose('game', this)
+
+    getter = (x, y, z) =>
+      if 0 <= x < @grid.size[0] and 0 <= y < @grid.size[1] and 0 <= z < @grid.size[2]
+        return @grid.get(x, y, z)
+      return undefined
+
+
+    @geometry = new WorldGeometry(getter, @chunkSize, @cubeSize)
+
+    @grid.handleEvent('set', (prev, data, x, y, z) =>
+      v = @grid.get(x, y, z)
+      for dx in [0..1]
+        for dy in [0..1]
+          for dz in [0..1]
+            @geometry.updateVoxel(x-dx, y-dy, z-dz, v)
+    )
 
     @mesh = null
-    updateMesh = =>
-      geom = @voxelRenderer.geometry()
-      geom.computeFaceNormals()
-      geom.normalsNeedUpdate = true
+    @geometry.handleEvent('geometry-update', (newGeometry) =>
+      geom = newGeometry
       if not @mesh or @mesh.geometry != geom
         console.log('updating geometry')
         if @mesh
           @scene.remove @mesh
         @mesh = new THREE.Mesh(
           geom
+          # new THREE.MeshFaceMaterial()
           # new THREE.MeshNormalMaterial()
           # new THREE.MeshLambertMaterial({color: 0xff0000})
+          new THREE.MeshLambertMaterial({vertexColors: THREE.FaceColors})
+          # new THREE.LineBasicMaterial({vertexColors: THREE.FaceColors})
           )
         DEBUG.expose('mesh', @mesh)
         @scene.add @mesh
-
-    @grid.handleEvent('set', (prev, data, x, y, z) =>
-      for dx in [0..1]
-        for dy in [0..1]
-          for dz in [0..1]
-            @voxelRenderer.updateVoxel(x-dx, y-dy, z-dz, mainRenderer)
-      updateMesh()
     )
+
+    generated = false
+    doGenerate = =>
+      return if generated
+      noise = new SimplexNoise()
+      worker = new NestedForWorker([[0, 63], [0, 63], [0, 63]], (y, x, z) =>
+        n = noise.noise3D(x / 32, y / 32, z / 32)
+        v = null
+        if n > 0
+          v = {color: 0xff0000}
+        @grid.set(v, x, y, z)
+      )
+      worker.cycle = 50
+      worker.run()
 
     @sphere =  new THREE.Mesh(
       new THREE.SphereGeometry(1, 16, 16),
@@ -66,9 +134,26 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       x: 0
       y: 0
       z: 0
+    currentColor = 0xff0000
     DEBUG.expose('sphere', @sphere)
     $(document).keydown((e) =>
       switch e.keyCode
+        when 49 # 1
+          currentColor = 0xff0000
+        when 50 # 2
+          currentColor = 0x00ff00
+        when 51 # 3
+          currentColor = 0xffff00
+        when 52 # 4
+          currentColor = 0x0000ff
+        when 53 # 5
+          currentColor = 0xff00ff
+        when 54 # 6
+          currentColor = 0x00ffff
+        when 55 # 7
+          currentColor = 0xffffff
+        when 71 # G
+          doGenerate()
         when 74 # J
           @sel.x--
         when 76 # L
@@ -88,11 +173,14 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
           mainRenderer = CubeRenderer
         when 89 # Y
           mainRenderer = MarchingCubes
-        when 13
-          @grid.set(true, @sel.x, @sel.y, @sel.z)
-      @sphere.position.x = @sel.x * scale
-      @sphere.position.y = @sel.y * scale
-      @sphere.position.z = @sel.z * scale
+        when 186 # ;
+          @grid.set({color: currentColor}, @sel.x, @sel.y, @sel.z)
+          # @grid.set(true, @sel.x, @sel.y, @sel.z)
+        when 80 # P
+          @grid.set(null, @sel.x, @sel.y, @sel.z)
+      @sphere.position.x = @sel.x * @cubeSize
+      @sphere.position.y = @sel.y * @cubeSize
+      @sphere.position.z = @sel.z * @cubeSize
       console.log(@sel.x, @sel.y, @sel.z)
       if 0 <= @sel.x < @grid.size[0] and 0 <= @sel.y < @grid.size[1] and 0 <= @sel.z < @grid.size[2]
         voxel = @grid.get(@sel.x, @sel.y, @sel.z)
@@ -123,4 +211,5 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @scene.add light
 
   update: (delta) ->
+    @geometry.update(delta)
     @person.update(delta)
