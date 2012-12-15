@@ -1,4 +1,4 @@
-lib.load('noisegenerator', 'voxels/coords')
+lib.load('noisegenerator', 'voxel/coords')
 
 lib.export('WorldGenerator', class WorldGenerator
   constructor: (chunkSize) ->
@@ -32,7 +32,7 @@ lib.export('WorldGenerator', class WorldGenerator
 
     return if n < 0 then null else {
       smooth: true
-      #color: if n < .2 then 0xff0000 else if n < .4 then 0xffff00 else if n < .6 then 0x0000ff else 0x00ff00
-      materialIndex: if n < .2 then 0 else if n < .4 then 1 else if n < .6 then 2 else 3
+      color: if n < .2 then 0xff0000 else if n < .4 then 0xffff00 else if n < .6 then 0x0000ff else 0x00ff00
+      #materialIndex: if n < .2 then 0 else if n < .4 then 1 else if n < .6 then 2 else 3
     }
 )
