@@ -4,6 +4,7 @@ supersecret.BaseGame = class BaseGame
   constructor: (container, width, height, opt_scene, opt_camera) ->
     @preinit and @preinit(container, width, height)
 
+    @container = container
     @renderer = new supersecret.Renderer(container, width, height)
     @scene = opt_scene or new THREE.Scene()
     @camera = opt_camera or @initCamera(width, height)

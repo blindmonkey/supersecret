@@ -14,6 +14,19 @@ lib.export('FaceManager', class supersecret.FaceManager
     @regenerateGeometry()
     @addVector([0, 0, 0])
 
+  @fromGeometry: (geometry) ->
+    faces = new FaceManager(geometry.faces.length * 2, geometry.materials)
+    for face in geometry.faces
+      a = geometry.vertices[face.a]
+      b = geometry.vertices[face.b]
+      c = geometry.vertices[face.c]
+      faces.addFace [a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z], {
+        color: face.color
+        vertexColors: face.vertexColors
+        normals: face.normals
+      }
+    return faces
+
   regenerateGeometry: ->
     newGeometry = new THREE.Geometry()
     if @materials
@@ -34,7 +47,7 @@ lib.export('FaceManager', class supersecret.FaceManager
 
   forEachFace: (f) ->
     for faceId of @faceIndex
-      return if f(@faceIndex[faceId]) is false
+      return if f(@faces[@faceIndex[faceId]]) is false
 
 
   getVectorId: (v) ->
@@ -128,6 +141,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       @geometry.facesNeedUpdate = true
     if doubleSided
       @addFace(a, c, b)
+    return face
 
   addFaces: (faces) ->
     @addFace(face.a, face.b, face.c) for face in faces

@@ -3,6 +3,8 @@ lib.load(
   'map'
   )
 
+distance = (x, y, z) -> Math.sqrt(x*x + y*y + z*z)
+
 lib.export('polygons', polygons = {
   complexifyFace: (face, radius) ->
     getNewPosition = ([x, y, z]) ->
@@ -23,8 +25,8 @@ lib.export('polygons', polygons = {
     vertices = [face.a, face.b, face.c]
     for vertexIndex in [0..2]
       vertex = vertices[vertexIndex]
-      vertex = geometry.vertices[vertex]
-      vertex = [vertex.x, vertex.y, vertex.z]
+      #vertex = geometry.vertices[vertex]
+      #vertex = [vertex.x, vertex.y, vertex.z]
       vertex = getNewPosition(vertex)
       vertices[vertexIndex] = vertex
 
@@ -32,18 +34,16 @@ lib.export('polygons', polygons = {
     mid23 = getNewPosition(getMidPoint(vertices[1], vertices[2]))
     mid13 = getNewPosition(getMidPoint(vertices[0], vertices[2]))
     return [
-      [vertex1, mid12, mid13]
-      [mid12, vertex2, mid23]
+      [vertices[0], mid12, mid13]
+      [mid12, vertices[1], mid23]
       [mid12, mid23, mid13]
-      [mid23, vertex3, mid13]
+      [mid23, vertices[2], mid13]
     ]
 
 
   complexify: (geometry, radius) ->
     faceIsEmpty = (face) ->
       face.a == face.b == face.c
-
-    distance = (x, y, z) -> Math.sqrt(x*x + y*y + z*z)
 
     getNewPosition = ([x, y, z]) ->
       d = distance(x, y, z)

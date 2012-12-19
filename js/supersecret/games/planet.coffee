@@ -10,7 +10,43 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
   @loaded: false
 
   postinit: ->
-    @person = new FirstPerson(container, @camera)
+    # @person = new FirstPerson(container, @camera)
+
+    @camera.position.x = -50
+    @camera.position.y = 0
+    @camera.position.z = 0
+    @rotation = 0
+    @pitch = 0
+    @rotationalMomentum = 0
+
+    lastMouse = null
+    dragging = false
+    $(@container).mousedown(((e) ->
+      dragging = true
+      lastMouse = [e.clientX, e.clientY]
+      ).bind(this))
+    $(@container).mouseup(((e) ->
+      dragging = false
+      lastMouse = null
+      ).bind(this))
+    $(@container).mousemove(((e) ->
+      if dragging
+        [lx, ly] = lastMouse
+        @rotationalMomentum = (e.clientX - lx) / 50
+        @pitch += (e.clientY - ly) / 50
+        lastMouse = [e.clientX, e.clientY]
+      ).bind(this))
+    @doRotate = true
+
+    @distance = 200
+
+    @placeCamera()
+
+  placeCamera: ->
+    @camera.position.x = Math.cos(@rotation) * @distance
+    @camera.position.z = Math.sin(@rotation) * @distance
+    @camera.position.y = Math.sin(@pitch) * @distance
+    @camera.lookAt(new THREE.Vector3(0, 0, 0))
 
   initGeometry: ->
     # @scene.add new THREE.Mesh(
@@ -59,10 +95,11 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     t1 = now()
 
     updater = new Updater(1000)
-    geometry = polygons.cube(1)
+    geometry = polygons.cube(sphereRadius)
     attrmap = ['a', 'b', 'c']
     moved = new Set()
-    faces = new FaceManager(geometry.faces.length+1)
+    #faces = new FaceManager(geometry.faces.length+1)
+    faces = FaceManager.fromGeometry(geometry)
 
     fixVertex = (x, y, z) ->
       n = noise.noise3D(x, y, z)
@@ -81,6 +118,29 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         z * r
       ], color]
 
+    mesh = null
+    updateGeometry = =>
+      # console.log ('updating geometry')
+      geometry = faces.generateGeometry()
+      # console.log("Planet generated in #{now() - t1}")
+      # console.log("Planet generated with #{geometry.vertices.length} vertices and #{geometry.faces.length} faces")
+      geometry.computeFaceNormals()
+      geometry.verticesNeedUpdate = true
+      geometry.facesNeedUpdate = true
+      geometry.colorsNeedUpdate = true
+      geometry.normalsNeedUpdate = true
+
+      if mesh is null or mesh.geometry != geometry
+        @scene.remove mesh if mesh
+        mesh = new THREE.Mesh(
+          geometry
+          new THREE.MeshLambertMaterial({vertexColors: THREE.VertexColors})
+          # new THREE.LineBasicMaterial({color: 0xff0000})
+          )
+        @scene.add mesh
+
+    queue = []
+
     updateFace = (face) ->
       moreFaces = polygons.complexifyFace(face, 1)
       faces.removeFaces face
@@ -88,92 +148,37 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         newFace = []
         newColors = []
         for vi in [0..2]
-          v = face[attrmap[vi]]
+          v = face[vi]
           [v, color] = fixVertex(v...)
           newFace.push v
           newColors.push color
-        faces.addFace(newFace..., {vertexColors: newColors})
+        queue.push faces.addFace(newFace..., {vertexColors: newColors})
 
-    mesh = null
-    updateGeometry = =>
-      geometry = faces.generateGeometry()
-      console.log("Planet generated in #{now() - t1}")
-      console.log("Planet generated with #{geometry.vertices.length} vertices and #{geometry.faces.length} faces")
-      geometry.computeFaceNormals()
-      geometry.verticesNeedUpdate = true
-      geometry.facesNeedUpdate = true
-      geometry.colorsNeedUpdate = true
-
-      if mesh is null or mesh.geometry != geometry
-        @scene.remove mesh if mesh
-        mesh = new THREE.Mesh(
-          geometry
-          new THREE.MeshLambertMaterial({vertexColors: THREE.VertexColors})
-          )
-        @scene.add mesh
-
-    runUpdater = ->
-      faces.forEachFace((face) ->
+    updater = new Updater(1500)
+    @runUpdater = ->
+      # console.log('UPDATER!')
+      t1 = now()
+      if queue.length == 0
+        console.log('Updating queue!')
+        faces.forEachFace((face) ->
+          queue.push face
+        )
+      while queue.length > 0 and now() - t1 < 500
+        face = queue.shift()
         updateFace(face)
+
+      updater.update('geometry-update', updateGeometry)
+
+
+    @runUpdater()
+    @doUpdate = true
+
+    $(document).keydown((e) =>
+      if e.keyCode == 85
+        @runUpdater()
+      else if e.keyCode == 73
+        @doUpdate = not @doUpdate
       )
-      updateGeometry()
-
-
-
-
-    # console.log('starting iteration')
-    # for faceIndex in [0..geometry.faces.length-1]
-    #   updater.update('face-iteration', "#{faceIndex} / #{geometry.faces.length}")
-    #   face = geometry.faces[faceIndex]
-    #   continue if face.a == face.b == face.c
-    #   vs = []
-    #   colors = []
-    #   for vertexIndexIndex in [0..2]
-    #     vertexIndex = face[attrmap[vertexIndexIndex]]
-    #     vertex = geometry.vertices[vertexIndex]
-    #     n = noise.noise3D(vertex.x, vertex.y, vertex.z)
-    #     if n < 0
-    #       n = 0
-    #       colors.push new THREE.Color(0x0000ff)
-    #     else if n > .9
-    #       colors.push new THREE.Color(0xffffff)
-    #     else
-    #       colors.push new THREE.Color(0x00ff00)
-    #     r = (n/32 + 1) * sphereRadius
-    #     v = [vertex.x, vertex.y, vertex.z]
-    #     vs.push [
-    #       vertex.x * r
-    #       vertex.y * r
-    #       vertex.z * r
-    #     ]
-    #   faces.addFace(vs..., {vertexColors: colors})
-
-
-    #geometry = faces.generateGeometry()
-    console.log('face normals computed')
-    mesh = new THREE.Mesh(
-      geometry
-      new THREE.MeshLambertMaterial({vertexColors: THREE.VertexColors})
-      )
-    @scene.add mesh
-
-    #faces = new FaceManager(500)
-    # for latIndex in [0..latPieces]
-    #   lat = latIndex / latPieces * Math.PI * 2 - Math.PI
-    #   r = Math.sin(lat) * sphereRadius
-    #   y = Math.cos(lat) * sphereRadius
-    #   if latIndex == 0
-    #     console.log(lat, r, y)
-
-    #   for lngIndex in [0..lngPieces]
-    #     lng = lngIndex / lngPieces * Math.PI * 2
-    #     x = Math.cos(lng) * r
-    #     z = Math.sin(lng) * r
-    #     @scene.add m = new THREE.Mesh(
-    #       new THREE.SphereGeometry(.1, 3, 3))
-    #     m.position.x = x
-    #     m.position.y = y
-    #     m.position.z = z
 
   initLights: ->
     light = new THREE.DirectionalLight(0xffffff, .6)
@@ -196,4 +201,10 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
 
 
   update: (delta) ->
-    @person.update(delta)
+    @runUpdater() if @doUpdate
+    @rotationalMomentum *= .9
+    @rotation += @rotationalMomentum
+    if @doRotate
+      @rotation += .01
+      @placeCamera()
+    # @person.update(delta)
