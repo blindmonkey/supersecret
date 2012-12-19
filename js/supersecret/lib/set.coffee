@@ -72,7 +72,9 @@ lib.export('Set', class Set
       throw 'Cannot pop from an empty set'
     for key of @items
       item = @items[key]
-      @remove(item)
+      #@remove(item)
+      delete @items[key]
+      @length--
       return item
 
   contains: (item) ->

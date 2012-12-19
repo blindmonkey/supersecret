@@ -4,14 +4,13 @@ lib.load(
   'noisegenerator'
   'now'
   'polygons'
+  'treedeque'
   -> supersecret.Game.loaded = true)
 
 supersecret.Game = class PlanetGame extends supersecret.BaseGame
   @loaded: false
 
   postinit: ->
-    # @person = new FirstPerson(container, @camera)
-
     @camera.position.x = -50
     @camera.position.y = 0
     @camera.position.z = 0
@@ -139,7 +138,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
           )
         @scene.add mesh
 
-    queue = []
+    queue = new TreeDeque()
 
     updateFace = (face) ->
       moreFaces = polygons.complexifyFace(face, 1)
