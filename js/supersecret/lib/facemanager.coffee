@@ -90,10 +90,12 @@ lib.export('FaceManager', class supersecret.FaceManager
     return face
 
   makeFace3: (face) ->
-    new THREE.Face3(face.aIndex, face.bIndex, face.cIndex,
+    f = new THREE.Face3(face.aIndex, face.bIndex, face.cIndex,
         face.normal,
         face.color,
         face.materialIndex)
+    f.vertexColors = face.vertexColors if face.vertexColors
+    return f
 
   addFace: (a, b, c, properties, doubleSided) ->
     [aId, bId, cId] = (@getVectorId(v) for v in [a, b, c])
@@ -104,6 +106,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       normal: properties and properties.normal
       color: (properties and properties.color and new THREE.Color(properties.color)) or undefined
       materialIndex: properties and properties.materialIndex
+      vertexColors: (properties and properties.vertexColors and (c for c in properties.vertexColors)) or undefined
     }
     faceId = @getFaceId(face)
     if faceId not of @faceIndex

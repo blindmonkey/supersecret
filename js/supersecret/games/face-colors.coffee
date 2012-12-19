@@ -19,27 +19,35 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
 
   initGeometry: ->
-    # @scene.add new THREE.Mesh(
-    #   new THREE.SphereGeometry(1, 8, 8),
-    #   new THREE.LineBasicMaterial({color: 0xff0000})
-    # )
+    @scene.add new THREE.Mesh(
+      new THREE.SphereGeometry(1, 8, 8),
+      new THREE.LineBasicMaterial({color: 0xff0000})
+    )
+    makeRandomColor = ->
+      r = Math.floor(Math.random() * 256)
+      g = Math.floor(Math.random() * 256)
+      b = Math.floor(Math.random() * 256)
+      return new THREE.Color((r << 16) + (g << 8) + b)
+    makeRandomColors = ->
+      (makeRandomColor() for c in [0..2])
 
     faces = new FaceManager(200)
     m = 100
-    faces.addFace([0, 0, 0], [m, 0, 0], [m, 0, -m], {color: new THREE.Color(0xff0000)})
-    faces.addFace([0, 0, 0], [m, 0, -m], [0, 0, -m], {color: new THREE.Color(0xff00ff)})
-    faces.addFace([0, 0, 0], [0, 0, -m], [-m, 0, -m], {color: new THREE.Color(0x0000ff)})
-    faces.addFace([0, 0, 0], [-m, 0, -m], [-m, 0, 0], {color: new THREE.Color(0x00ffff)})
-    faces.addFace([0, 0, 0], [-m, 0, 0], [-m, 0, m], {color: new THREE.Color(0x00ff00)})
-    faces.addFace([0, 0, 0], [-m, 0, m], [0, 0, m], {color: new THREE.Color(0xffff00)})
-    faces.addFace([0, 0, 0], [0, 0, m], [m, 0, m], {color: new THREE.Color(0xffff00)})
-    faces.addFace([0, 0, 0], [m, 0, m], [m, 0, 0], {color: new THREE.Color(0xffff00)})
+    faces.addFace([0, 0, 0], [m, 0, 0], [m, 0, -m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [m, 0, -m], [0, 0, -m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [0, 0, -m], [-m, 0, -m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [-m, 0, -m], [-m, 0, 0], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [-m, 0, 0], [-m, 0, m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [-m, 0, m], [0, 0, m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [0, 0, m], [m, 0, m], {vertexColors: makeRandomColors()})
+    faces.addFace([0, 0, 0], [m, 0, m], [m, 0, 0], {vertexColors: makeRandomColors()})
+    console.log(faces.faces)
 
     geometry = faces.generateGeometry()
     geometry.computeVertexNormals()
     mesh = new THREE.Mesh(
       geometry,
-      new THREE.LineBasicMaterial({vertexColors: THREE.FaceColors}))
+      new THREE.LineBasicMaterial({vertexColors: THREE.VertexColors}))
     @scene.add mesh
 
   render: (delta) ->
