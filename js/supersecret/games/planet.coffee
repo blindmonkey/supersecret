@@ -155,6 +155,15 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         queue.push faces.addFace(newFace..., {vertexColors: newColors})
 
     updater = new Updater(1500)
+    faceUpdateTime = 50
+    window.onhashchange = ->
+      hash = window.location.hash.substr(1)
+      params = getQueryParams(hash)
+      if 'time' of params
+        faceUpdateTime = parseInt(params.time)
+      if 'freq' of params
+        updater.setFrequency('geometry-update', parseInt(params.freq))
+
     @runUpdater = ->
       # console.log('UPDATER!')
       t1 = now()
@@ -163,10 +172,11 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         faces.forEachFace((face) ->
           queue.push face
         )
-      while queue.length > 0 and now() - t1 < 500
+      while queue.length > 0 and now() - t1 < faceUpdateTime
         face = queue.shift()
         updateFace(face)
 
+      updater.update('geometry-stats', "The geometry currently consists of #{faces.vertices and faces.vertices.length} vertices and #{queue.length} faces")
       updater.update('geometry-update', updateGeometry)
 
 
@@ -178,25 +188,30 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         @runUpdater()
       else if e.keyCode == 73
         @doUpdate = not @doUpdate
+        if @doUpdate
+          console.log('update enabled')
+        else
+          console.log('update disabled')
       )
 
   initLights: ->
+    @scene.add new THREE.AmbientLight(0x101010)
     light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.y = Math.random()
-    light.position.x = Math.random()
-    light.position.z = Math.random()
+    light.position.y = 0
+    light.position.x = 1
+    light.position.z = 1
     @scene.add light
 
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.y = Math.random()
-    light.position.x = -Math.random()
-    light.position.z = -Math.random()
-    @scene.add light
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.y = -Math.random()
-    light.position.x = Math.random()
-    light.position.z = Math.random()
-    @scene.add light
+    # light = new THREE.DirectionalLight(0xffffff, .6)
+    # light.position.y = Math.random()
+    # light.position.x = -Math.random()
+    # light.position.z = -Math.random()
+    # @scene.add light
+    # light = new THREE.DirectionalLight(0xffffff, .6)
+    # light.position.y = -Math.random()
+    # light.position.x = Math.random()
+    # light.position.z = Math.random()
+    # @scene.add light
 
 
 
