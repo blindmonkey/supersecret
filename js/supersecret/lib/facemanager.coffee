@@ -24,11 +24,17 @@ lib.export('FaceManager', class supersecret.FaceManager
     if @geometry
       newGeometry.vertices = @geometry.vertices
       newGeometry.faces = @geometry.faces
-    for i in [1..@faceBufferCount]
+    for i in [1.. if @geometry then @geometry.faces.length*2 else @faceBufferCount]
       newGeometry.faces.push @nullFace
       @faces.push null
       @facePool.add(i - 1 + offset)
     @geometry = newGeometry
+
+  forEachVertex: (f) ->
+
+  forEachFace: (f) ->
+    for faceId of @faceIndex
+      return if f(@faceIndex[faceId]) is false
 
 
   getVectorId: (v) ->
@@ -55,6 +61,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       index = @faceIndex[faceId]
       delete @faceIndex[faceId]
       @faces[index] = null
+      @facePool.add index
       @geometry.faces[index] = @nullFace
 
   getFaceId: (f) ->

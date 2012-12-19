@@ -290,6 +290,16 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @cubeSize = 5
     @world = new World(@chunkSize, @cubeSize, @scene)
 
+    distance = (x, y, z) ->
+      Math.sqrt(x*x + y*y + z*z)
+
+    for x in [-16..16]
+      for y in [-16..16]
+        for z in [-16..16]
+          if distance(x, y, z) < 15
+            @world.set({color:0x00ff00}, x, y, z)
+
+
     DEBUG.expose('game', this)
 
     @ui = new VoxelUI(this)

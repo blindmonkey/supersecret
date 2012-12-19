@@ -3,6 +3,7 @@ lib.load(
   'firstperson'
   'noisegenerator'
   'now'
+  'polygons'
   -> supersecret.Game.loaded = true)
 
 supersecret.Game = class PlanetGame extends supersecret.BaseGame
@@ -17,27 +18,6 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     #   new THREE.LineBasicMaterial({color: 0xff0000})
     #   )
 
-    latFromIndex = (index, pieces) ->
-      return 0 if pieces == 0
-      index / pieces * Math.PI #- Math.PI / 2
-
-    lngFromIndex = (index, pieces) ->
-      return 0 if pieces == 0
-      index / pieces * Math.PI * 2
-
-    forEachLat = (pieces, f) ->
-      for index in [0..pieces]
-        f(index, latFromIndex(index, pieces))
-
-    forEachLng = (lat, pieces, f) ->
-      r = Math.sin(lat)
-      y = Math.cos(lat)
-      for index in [0..pieces]
-        lng = lngFromIndex(index, pieces)
-        x = Math.cos(lng) * r
-        z = Math.sin(lng) * r
-        f(index, lng, x, y, z)
-
     distance = (x, y, z) ->
       return Math.sqrt(x*x + y*y + z*z)
     resize = (nd, x, y, z) ->
@@ -48,9 +28,6 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         z / d * nd
       ]
 
-    rings = []
-    latPieces = 512
-    lngPieces = 1024
     noise = new NoiseGenerator(new SimplexNoise(), [{
       scale: .65
     }, {
@@ -80,65 +57,99 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     }])
     sphereRadius = 50
     t1 = now()
-    forEachLat(latPieces, (latIndex, lat) =>
-      npieces = if latIndex == 0 or latIndex == latPieces then 0 else lngPieces
-      ring = []
-      forEachLng(lat, npieces, (lngIndex, lng, x, y, z) =>
-        ring.push [x, y, z]
-      )
-      rings.push ring
-    )
-    console.log(rings)
-    console.log("First generation stage took #{now() - t1}")
 
-    faces = new FaceManager(500)
-    addFace = (rawVertices...) ->
-      vertexColors = []
-      vertices = []
-      for vertex in rawVertices
-        [x, y, z] = vertex
-        n = noise.noise3D(x, y, z)
-        if n < 0
-          n = 0
-          vertexColors.push new THREE.Color(0x0000ff)
-        else if n > .9
-          vertexColors.push new THREE.Color(0xffffff)
-        else
-          vertexColors.push new THREE.Color(0x00ff00)
-        r = (n/32 + 1) * sphereRadius
-        vertices.push [x*r, y*r, z*r]
-      faces.addFace(vertices..., {vertexColors: vertexColors})
+    updater = new Updater(1000)
+    geometry = polygons.cube(1)
+    attrmap = ['a', 'b', 'c']
+    moved = new Set()
+    faces = new FaceManager(geometry.faces.length+1)
 
-    for ringIndex in [0..rings.length-2]
-      ring = rings[ringIndex]
-      nextRing = rings[ringIndex+1]
-      isFirst = ringIndex == 0
-      isLast = ringIndex == rings.length-2
-      if isFirst
-        p1 = ring[0]
-        for p2index in [0..nextRing.length - 1]
-          p2 = nextRing[p2index]
-          p2next = nextRing[(p2index+1) % nextRing.length]
-          addFace(p1, p2next, p2)
-      else if isLast
-        p2 = nextRing[0]
-        for p1index in [0..ring.length - 1]
-          p1 = ring[p1index]
-          p1next = ring[(p1index+1) % ring.length]
-          addFace(p1, p1next, p2)
+    fixVertex = (x, y, z) ->
+      n = noise.noise3D(x, y, z)
+      color = null
+      if n < 0
+        n = 0
+        color = new THREE.Color(0x0000ff)
+      else if n > .9
+        color = new THREE.Color(0xffffff)
       else
-        for index in [0..ring.length - 1]
-          p1 = ring[index]
-          p1next = ring[(index+1) % ring.length]
-          p2 = nextRing[index]
-          p2next = nextRing[(index+1) % nextRing.length]
-          addFace(p1, p1next, p2next)
-          addFace(p1, p2next, p2)
+        color = new THREE.Color(0x00ff00)
+      r = (n/32 + 1) * sphereRadius
+      return [[
+        x * r
+        y * r
+        z * r
+      ], color]
 
-    geometry = faces.generateGeometry()
-    console.log("Planet generated in #{now() - t1}")
-    console.log("Planet generated with #{geometry.vertices.length} vertices and #{geometry.faces.length} faces")
-    geometry.computeFaceNormals()
+    updateFace = (face) ->
+      moreFaces = polygons.complexifyFace(face, 1)
+      faces.removeFaces face
+      for face in moreFaces
+        newFace = []
+        newColors = []
+        for vi in [0..2]
+          v = face[attrmap[vi]]
+          [v, color] = fixVertex(v...)
+          newFace.push v
+          newColors.push color
+        faces.addFace(newFace..., {vertexColors: newColors})
+
+    mesh = null
+    updateGeometry = =>
+      geometry = faces.generateGeometry()
+      console.log("Planet generated in #{now() - t1}")
+      console.log("Planet generated with #{geometry.vertices.length} vertices and #{geometry.faces.length} faces")
+      geometry.computeFaceNormals()
+      geometry.verticesNeedUpdate = true
+      geometry.facesNeedUpdate = true
+      geometry.colorsNeedUpdate = true
+
+      if mesh is null or mesh.geometry != geometry
+        @scene.remove mesh if mesh
+        mesh = new THREE.Mesh(
+          geometry
+          new THREE.MeshLambertMaterial({vertexColors: THREE.VertexColors})
+          )
+        @scene.add mesh
+
+    runUpdater = ->
+      faces.forEachFace((face) ->
+        updateFace(face)
+      )
+      updateGeometry()
+
+
+
+
+    # console.log('starting iteration')
+    # for faceIndex in [0..geometry.faces.length-1]
+    #   updater.update('face-iteration', "#{faceIndex} / #{geometry.faces.length}")
+    #   face = geometry.faces[faceIndex]
+    #   continue if face.a == face.b == face.c
+    #   vs = []
+    #   colors = []
+    #   for vertexIndexIndex in [0..2]
+    #     vertexIndex = face[attrmap[vertexIndexIndex]]
+    #     vertex = geometry.vertices[vertexIndex]
+    #     n = noise.noise3D(vertex.x, vertex.y, vertex.z)
+    #     if n < 0
+    #       n = 0
+    #       colors.push new THREE.Color(0x0000ff)
+    #     else if n > .9
+    #       colors.push new THREE.Color(0xffffff)
+    #     else
+    #       colors.push new THREE.Color(0x00ff00)
+    #     r = (n/32 + 1) * sphereRadius
+    #     v = [vertex.x, vertex.y, vertex.z]
+    #     vs.push [
+    #       vertex.x * r
+    #       vertex.y * r
+    #       vertex.z * r
+    #     ]
+    #   faces.addFace(vs..., {vertexColors: colors})
+
+
+    #geometry = faces.generateGeometry()
     console.log('face normals computed')
     mesh = new THREE.Mesh(
       geometry
