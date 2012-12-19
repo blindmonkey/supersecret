@@ -230,7 +230,7 @@ lib.export('MarchingCubes', class MarchingCubes
         a.push(transformedFace)
       return a
 
-    return null
+    return []
 
     return @faceManager.geometry
 

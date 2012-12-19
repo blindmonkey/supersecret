@@ -49,7 +49,7 @@ lib.export('VoxelRenderer', class VoxelRenderer
       voxel = @grid.get(x, y, z)
 
     if voxel and voxel.faces
-      # console.log('Removing faces!!!')
+      console.log('Removing faces!!!')
       facesToRemove = []
       for simpleFace in voxel.faces
         face =
@@ -60,7 +60,7 @@ lib.export('VoxelRenderer', class VoxelRenderer
       @faces.removeFaces(facesToRemove...)
 
     neighbors = getCornerArray(@getter, x, y, z)
-    console.log(neighbors)
+    # console.log(neighbors)
     for neighbor in neighbors
       if neighbor is undefined
         return
