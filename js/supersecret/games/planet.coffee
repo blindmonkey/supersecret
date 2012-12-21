@@ -59,7 +59,8 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     $(@container).mousemove(((e) ->
       if dragging
         [lx, ly] = lastMouse
-        @rotationalMomentum = (e.clientX - lx) # / 50
+        @rotationalMomentum = (e.clientX - lx) * @distance / 300
+        # console.log(@rotationalMomentum)
         @pitch += (e.clientY - ly) / 50
         lastMouse = [e.clientX, e.clientY]
       ).bind(this))
@@ -138,6 +139,9 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     }, {
       scale: 80
       multiplier: .10
+    }, {
+      scale: 90
+      multiplier: .09
     }])
     sphereRadius = 50
     t1 = now()
@@ -194,7 +198,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         @scene.add mesh
 
     queuePush = (face, generation) ->
-      queue.push face, generation
+      queue.push [face, generation]
 
     queuePop = ->
       return queue.shift()
@@ -242,7 +246,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
         i = 0
         faces.forEachFace((face) =>
           if i < (@watched.faces)
-            queue.push face
+            queuePush face, 0
             i++
         )
       updatedFaces = 0
