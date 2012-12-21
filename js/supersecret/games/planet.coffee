@@ -4,13 +4,32 @@ lib.load(
   'noisegenerator'
   'now'
   'polygons'
-  'treedeque'
   -> supersecret.Game.loaded = true)
+
+class Sun
+  constructor: (scene) ->
+    @light = new THREE.DirectionalLight(0xffffff, 0.4)
+    @light.position.y = 0
+    @light.position.x = 1
+    @light.position.z = 1
+    @rotation = 0
+    @rotationSpeed = Math.PI / 16 / 1000
+    scene.add @light
+    
+  update: (delta) ->
+    @rotation -= @rotationSpeed * delta
+    while @rotation < 0
+      @rotation += 2 * Math.PI
+    @light.position.x = Math.cos(@rotation)
+    @light.position.z = Math.sin(@rotation)
+    
 
 supersecret.Game = class PlanetGame extends supersecret.BaseGame
   @loaded: false
 
   postinit: ->
+    # @person = new FirstPerson(container, @camera)
+
     @camera.position.x = -50
     @camera.position.y = 0
     @camera.position.z = 0
@@ -89,6 +108,12 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     }, {
       scale: 24
       multiplier: .15
+    }, {
+      scale: 30
+      multiplier: .08
+    }, {
+      scale: 40
+      multiplier: .04
     }])
     sphereRadius = 50
     t1 = now()
@@ -138,7 +163,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
           )
         @scene.add mesh
 
-    queue = new TreeDeque()
+    queue = []
 
     updateFace = (face) ->
       moreFaces = polygons.complexifyFace(face, 1)
@@ -195,11 +220,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
 
   initLights: ->
     @scene.add new THREE.AmbientLight(0x101010)
-    light = new THREE.DirectionalLight(0xffffff, .6)
-    light.position.y = 0
-    light.position.x = 1
-    light.position.z = 1
-    @scene.add light
+    @sun = new Sun(@scene)
 
     # light = new THREE.DirectionalLight(0xffffff, .6)
     # light.position.y = Math.random()
@@ -221,4 +242,5 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     if @doRotate
       @rotation += .01
       @placeCamera()
+    @sun.update(delta)
     # @person.update(delta)
