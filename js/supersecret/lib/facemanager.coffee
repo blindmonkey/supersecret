@@ -1,4 +1,7 @@
-lib.load('set', ->)
+lib.load(
+  'set'
+  'treedeque'
+  ->)
 
 lib.export('FaceManager', class supersecret.FaceManager
   constructor: (faceBufferCount, materials) ->
@@ -32,7 +35,7 @@ lib.export('FaceManager', class supersecret.FaceManager
     if @materials
       newGeometry.materials = @materials
     newGeometry.dynamic = true
-    @facePool = new Set()
+    @facePool = new TreeDeque()
     offset = if @geometry then @geometry.faces.length else 0
     if @geometry
       newGeometry.vertices = @geometry.vertices
@@ -40,7 +43,7 @@ lib.export('FaceManager', class supersecret.FaceManager
     for i in [1.. if @geometry then @geometry.faces.length*2 else @faceBufferCount]
       newGeometry.faces.push @nullFace
       @faces.push null
-      @facePool.add(i - 1 + offset)
+      @facePool.push(i - 1 + offset)
     @geometry = newGeometry
 
   forEachVertex: (f) ->
@@ -74,7 +77,7 @@ lib.export('FaceManager', class supersecret.FaceManager
       index = @faceIndex[faceId]
       delete @faceIndex[faceId]
       @faces[index] = null
-      @facePool.add index
+      @facePool.push index
       @geometry.faces[index] = @nullFace
 
   getFaceId: (f) ->

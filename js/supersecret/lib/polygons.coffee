@@ -81,66 +81,33 @@ lib.export('polygons', polygons = {
 
   cube: (size) ->
     faces = new FaceManager(12)
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, -0.5 * size]
-      [0.5 * size, -0.5 * size, -0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [-0.5 * size, 0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, -0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, 0.5 * size]
-      [0.5 * size, -0.5 * size, 0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, 0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-      [-0.5 * size, 0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-      [0.5 * size, -0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [-0.5 * size, 0.5 * size, 0.5 * size]
-      [-0.5 * size, 0.5 * size, -0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [-0.5 * size, -0.5 * size, 0.5 * size]
-      [-0.5 * size, 0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, 0.5 * size, -0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-      [0.5 * size, 0.5 * size, -0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, 0.5 * size, -0.5 * size]
-      [-0.5 * size, 0.5 * size, 0.5 * size]
-      [0.5 * size, 0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, -0.5 * size, 0.5 * size]
-    )
-    faces.addFace(
-      [-0.5 * size, -0.5 * size, -0.5 * size]
-      [0.5 * size, -0.5 * size, 0.5 * size]
-      [-0.5 * size, -0.5 * size, 0.5 * size]
-    )
+    addFace = (mainAxis, otherAxes, mainAxisValue) ->
+      axes =
+        x: 0
+        y: 1
+        z: 2
+      vertices = [[-1,-1],[1,-1],[1,1],[-1,1]]
+      for v in [0..vertices.length-1]
+        n = (v+1) % vertices.length
+        v1 = vertices[v]
+        v2 = vertices[n]
+        face = [[],[],[]]
+        face[0][axes[mainAxis]] = mainAxisValue
+        face[0][axes[otherAxes[0]]] = v1[0]
+        face[0][axes[otherAxes[1]]] = v1[1]
+        face[1][axes[mainAxis]] = mainAxisValue
+        face[1][axes[otherAxes[0]]] = v2[0]
+        face[1][axes[otherAxes[1]]] = v2[1]
+        face[2][axes[mainAxis]] = mainAxisValue
+        face[2][axes[otherAxes[0]]] = 0
+        face[2][axes[otherAxes[1]]] = 0
+        faces.addFace face...
+    addFace('x', ['y', 'z'], 1)
+    addFace('x', ['z', 'y'], -1)
+    addFace('z', ['x', 'y'], 1)
+    addFace('z', ['y', 'x'], -1)
+    addFace('y', ['z', 'x'], 1)
+    addFace('y', ['x', 'z'], -1)
     return faces.generateGeometry()
 
   sphere: (radius, iterations, optgeometry) ->
