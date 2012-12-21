@@ -144,7 +144,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
 
     mesh = null
     updateGeometry = =>
-      # console.log ('updating geometry')
+      console.log ('updating geometry')
       geometry = faces.generateGeometry()
       # console.log("Planet generated in #{now() - t1}")
       # console.log("Planet generated with #{geometry.vertices.length} vertices and #{geometry.faces.length} faces")
@@ -203,9 +203,9 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
       updater.update('geometry-stats', "The geometry currently consists of #{faces.vertices and faces.vertices.length} vertices and #{queue.length} faces")
       updater.update('geometry-update', updateGeometry)
 
-
-    @runUpdater()
-    @doUpdate = true
+    updateGeometry()
+    #@runUpdater()
+    @doUpdate = false
 
     $(document).keydown((e) =>
       if e.keyCode == 85
