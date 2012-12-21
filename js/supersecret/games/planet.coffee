@@ -15,14 +15,23 @@ class Sun
     @rotation = 0
     @rotationSpeed = Math.PI / 16 / 1000
     scene.add @light
-    
+    @sunSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 8, 8)
+      new THREE.MeshLambertMaterial({color: 0xffff00})
+    )
+    scene.add @sunSphere
+
   update: (delta) ->
     @rotation -= @rotationSpeed * delta
     while @rotation < 0
       @rotation += 2 * Math.PI
-    @light.position.x = Math.cos(@rotation)
-    @light.position.z = Math.sin(@rotation)
-    
+    cos = Math.cos(@rotation)
+    sin = Math.sin(@rotation)
+    @light.position.x = cos
+    @light.position.z = sin
+    @sunSphere.position.x = cos * 100
+    @sunSphere.position.z = sin * 100
+
 
 supersecret.Game = class PlanetGame extends supersecret.BaseGame
   @loaded: false
@@ -50,19 +59,25 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
     $(@container).mousemove(((e) ->
       if dragging
         [lx, ly] = lastMouse
-        @rotationalMomentum = (e.clientX - lx) / 50
+        @rotationalMomentum = (e.clientX - lx) # / 50
         @pitch += (e.clientY - ly) / 50
         lastMouse = [e.clientX, e.clientY]
       ).bind(this))
     @doRotate = true
 
     @distance = 200
+    $(@container).bind('mousewheel', ((e, delta) ->
+      delta = e.originalEvent.wheelDeltaY
+      @distance += delta / 120
+      @placeCamera()
+    ).bind(this))
 
     @placeCamera()
 
   placeCamera: ->
-    @camera.position.x = Math.cos(@rotation) * @distance
-    @camera.position.z = Math.sin(@rotation) * @distance
+    r = Math.cos(@pitch) * @distance
+    @camera.position.x = Math.cos(@rotation) * r
+    @camera.position.z = Math.sin(@rotation) * r
     @camera.position.y = Math.sin(@pitch) * @distance
     @camera.lookAt(new THREE.Vector3(0, 0, 0))
 
@@ -107,23 +122,38 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
       multiplier: .2
     }, {
       scale: 24
-      multiplier: .15
+      multiplier: .18
     }, {
       scale: 30
-      multiplier: .08
+      multiplier: .14
     }, {
       scale: 40
-      multiplier: .04
+      multiplier: .13
+    }, {
+      scale: 50
+      multiplier: .12
+    }, {
+      scale: 75
+      multiplier: .11
+    }, {
+      scale: 80
+      multiplier: .10
     }])
     sphereRadius = 50
     t1 = now()
 
     updater = new Updater(1000)
-    geometry = polygons.cube(sphereRadius)
+    geometry = null
     attrmap = ['a', 'b', 'c']
     moved = new Set()
     #faces = new FaceManager(geometry.faces.length+1)
-    faces = FaceManager.fromGeometry(geometry)
+    faces = null
+    queue = []
+    (generateInitialGeometry = ->
+      geometry = polygons.cube(sphereRadius)
+      faces = FaceManager.fromGeometry(geometry)
+      queue = []
+    )()
 
     fixVertex = (x, y, z) ->
       n = noise.noise3D(x, y, z)
@@ -131,7 +161,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
       if n < 0
         n = 0
         color = new THREE.Color(0x0000ff)
-      else if n > .9
+      else if n > 1.1
         color = new THREE.Color(0xffffff)
       else
         color = new THREE.Color(0x00ff00)
@@ -163,11 +193,16 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
           )
         @scene.add mesh
 
-    queue = []
+    queuePush = (face, generation) ->
+      queue.push face, generation
 
-    updateFace = (face) ->
+    queuePop = ->
+      return queue.shift()
+
+    updateFace = (face, generation) ->
       moreFaces = polygons.complexifyFace(face, 1)
       faces.removeFaces face
+      n = 0
       for face in moreFaces
         newFace = []
         newColors = []
@@ -176,41 +211,79 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
           [v, color] = fixVertex(v...)
           newFace.push v
           newColors.push color
-        queue.push faces.addFace(newFace..., {vertexColors: newColors})
+        queuePush faces.addFace(newFace..., {vertexColors: newColors}), generation+1
 
     updater = new Updater(1500)
-    faceUpdateTime = 50
-    window.onhashchange = ->
-      hash = window.location.hash.substr(1)
-      params = getQueryParams(hash)
-      if 'time' of params
-        faceUpdateTime = parseInt(params.time)
-      if 'freq' of params
-        updater.setFrequency('geometry-update', parseInt(params.freq))
+    # faceUpdateTime = 50
+    @setTransform('time', parseInt)
+    @watch 'freq', (v) ->
+      updater.setFrequency('geometry-update', v)
+    @watched.faces = @watched.faces or 2
 
-    @runUpdater = ->
+    faceAverage = (face) ->
+      xs = 0
+      ys = 0
+      zs = 0
+      for [x,y,z] in [face.a, face.b, face.c]
+        xs+=x
+        ys+=y
+        zs+=z
+      return [xs / 3, ys / 3, zs / 3]
+
+    projector = new THREE.Projector()
+
+    faceTest = false
+    @runUpdater = =>
+      originVector = projector.projectVector(new THREE.Vector3(0,0,0), @camera)
       # console.log('UPDATER!')
       t1 = now()
       if queue.length == 0
         console.log('Updating queue!')
-        faces.forEachFace((face) ->
-          queue.push face
+        i = 0
+        faces.forEachFace((face) =>
+          if i < (@watched.faces)
+            queue.push face
+            i++
         )
-      while queue.length > 0 and now() - t1 < faceUpdateTime
-        face = queue.shift()
-        updateFace(face)
+      updatedFaces = 0
+      skippedFaces = 0
+      while queue.length > 0 and now() - t1 < @watched.time
+        [face, generation] = queuePop()
+        shouldUpdateFace = not faceTest
+        if faceTest
+          vf = (projector.projectVector(new THREE.Vector3(p...), @camera) for p in [face.a, face.b, face.c])
+          for v in vf
+            if -1 < v.x < 1 and -1 < v.y < 1 and v.z < originVector.z
+              shouldUpdateFace = true
+              break
 
-      updater.update('geometry-stats', "The geometry currently consists of #{faces.vertices and faces.vertices.length} vertices and #{queue.length} faces")
+        if shouldUpdateFace
+          updateFace face, generation
+          updatedFaces++
+        else
+          queuePush face, generation
+          skippedFaces++
+      updater.update('geometry-stats', "The geometry currently consists of #{queue.length} faces. Last cycle, #{updatedFaces} faces were updated and #{skippedFaces} were skipped")
       updater.update('geometry-update', updateGeometry)
 
     updateGeometry()
     #@runUpdater()
     @doUpdate = false
+    @sunRotate = true
 
     $(document).keydown((e) =>
-      if e.keyCode == 85
-        @runUpdater()
-      else if e.keyCode == 73
+      console.log(e.keyCode)
+      if e.keyCode == 85 # U
+        @runUpdater.bind(this)()
+      else if e.keyCode == 84 # T
+        faceTest = not faceTest
+      else if e.keyCode == 65 # A
+        generateInitialGeometry()
+      else if e.keyCode == 83 # S
+        @sunRotate = not @sunRotate
+      else if e.keyCode == 82 # R
+        @doRotate = not @doRotate
+      else if e.keyCode == 73 # I
         @doUpdate = not @doUpdate
         if @doUpdate
           console.log('update enabled')
@@ -219,7 +292,7 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
       )
 
   initLights: ->
-    @scene.add new THREE.AmbientLight(0x101010)
+    @scene.add new THREE.AmbientLight(0x303030)
     @sun = new Sun(@scene)
 
     # light = new THREE.DirectionalLight(0xffffff, .6)
@@ -236,11 +309,16 @@ supersecret.Game = class PlanetGame extends supersecret.BaseGame
 
 
   update: (delta) ->
+    if not @lastRotation
+      @lastRotation = null
     @runUpdater() if @doUpdate
     @rotationalMomentum *= .9
-    @rotation += @rotationalMomentum
+    @rotation += @rotationalMomentum * delta / 1000
     if @doRotate
-      @rotation += .01
+      @rotationalMomentum += .1
+    if @lastRotation != @rotation
+      @lastRotation = @rotation
       @placeCamera()
-    @sun.update(delta)
+    if @sunRotate
+      @sun.update(delta)
     # @person.update(delta)
