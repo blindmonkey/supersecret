@@ -13,7 +13,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @person = new FirstPerson(container, @camera)
 
   initGeometry: ->
-    geometry = polygons.sphere(10, 5)
+    geometry = polygons.sphere(10, 1)
     geometry.computeFaceNormals()
     @scene.add new THREE.Mesh(geometry
       new THREE.MeshLambertMaterial({color: 0xff0000})

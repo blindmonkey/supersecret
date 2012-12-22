@@ -5,6 +5,7 @@ supersecret.FirstPerson = class FirstPerson
     @camera = camera
     @rotation = 0
     @pitch = 0
+    @speed = 10
     @initialized = false
 
     @initControls()
@@ -58,17 +59,17 @@ supersecret.FirstPerson = class FirstPerson
       for key in @keys[keyset]
         if @downKeys[key]
           if keyset == 'RISE'
-            @camera.position.y += delta / 10
+            @camera.position.y += delta / @speed
           if keyset == 'LOWER'
-            @camera.position.y -= delta / 10
+            @camera.position.y -= delta / @speed
           else if keyset == 'UP'
-            @walkForward(delta / 10)
+            @walkForward(delta / @speed)
           else if keyset == 'DOWN'
-            @walkBackward(delta / 10)
+            @walkBackward(delta / @speed)
           else if keyset == 'LEFT'
-            @strafeLeft(delta / 10)
+            @strafeLeft(delta / @speed)
           else if keyset == 'RIGHT'
-            @strafeRight(delta / 10)
+            @strafeRight(delta / @speed)
 
   rotateY: (degrees) ->
     radians = degrees * Math.PI / 180

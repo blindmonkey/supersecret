@@ -1,5 +1,5 @@
 window.getQueryParams = (opt_query) ->
-  query = opt_query || window.location.href.split('?').splice(1).join('?')
+  query = opt_query || window.location.href.split('#')[0].split('?').splice(1).join('?')
   components = query.split('&')
   params = {}
   for component in components

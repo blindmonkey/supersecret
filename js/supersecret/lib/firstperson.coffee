@@ -7,6 +7,7 @@ lib.export('FirstPerson', class FirstPerson
     @pitch = 0
     @tilt = 0
     @initialized = false
+    @speed = 10
 
     @initControls()
 
@@ -61,17 +62,17 @@ lib.export('FirstPerson', class FirstPerson
       for key in @keys[keyset]
         if @downKeys[key]
           if keyset == 'RISE'
-            @camera.position.y += delta / 10
+            @camera.position.y += delta / @speed
           if keyset == 'LOWER'
-            @camera.position.y -= delta / 10
+            @camera.position.y -= delta / @speed
           else if keyset == 'UP'
-            @walkForward(delta / 10)
+            @walkForward(delta / @speed)
           else if keyset == 'DOWN'
-            @walkBackward(delta / 10)
+            @walkBackward(delta / @speed)
           else if keyset == 'LEFT'
-            @strafeLeft(delta / 10)
+            @strafeLeft(delta / @speed)
           else if keyset == 'RIGHT'
-            @strafeRight(delta / 10)
+            @strafeRight(delta / @speed)
           else if keyset == 'TILTRIGHT'
             @tilt += .1
           else if keyset == 'TILTLEFT'
