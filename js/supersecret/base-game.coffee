@@ -40,6 +40,7 @@ supersecret.BaseGame = class BaseGame
       hash = window.location.hash.substr(1)
       params = getQueryParams(hash)
       doWatchedUpdate(params)
+    window.onhashchange()
 
     @preinit and @preinit(container, width, height)
 
@@ -78,6 +79,7 @@ supersecret.BaseGame = class BaseGame
     if property not of @watchedHandlers
       @watchedHandlers[property] = []
     @watchedHandlers[property].push handler
+    handler(@watched[property])
 
   initCamera: (width, height) ->
     VIEW_ANGLE = @watched.fov or 45

@@ -140,9 +140,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         return [v.x * 5, v.y * 5, v.z * 5]
       ),
       1,
-      undefined)
+      #undefined)
       #new THREE.LineBasicMaterial({ color: 0xff0000 }))
-      (new THREE.ParticleBasicMaterial({
+      new THREE.ParticleBasicMaterial({
         size: 10,
         map: @createParticleTexture(),
         blending: THREE.AdditiveBlending,

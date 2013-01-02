@@ -1,7 +1,10 @@
+lib.load('keys')
+
 lib.export('FirstPerson', class FirstPerson
-  constructor: (container, camera, horizontalAxes) ->
+  constructor: (container, camera, horizontalAxes, keys) ->
     @horizontalAxes = ['x', 'z']
     @container = $(container)
+    @interactive = true
     @camera = camera
     @rotation = 0
     @pitch = 0
@@ -10,18 +13,16 @@ lib.export('FirstPerson', class FirstPerson
     @speed = 10
 
     @initControls()
+    @keys = keys or new KeyManager()
+    @keys.bind 38, 87, 'up'
+    @keys.bind 37, 65, 'left'
+    @keys.bind 39, 68, 'right'
+    @keys.bind 40, 83, 'down'
+    @keys.bind 69, 'rise'
+    @keys.bind 81, 'lower'
+    @keys.bind 84, 'tiltright'
+    @keys.bind 82, 'tiltleft'
 
-    @keys = {
-      UP: [38, 87]
-      LEFT: [37, 65]
-      RIGHT: [39, 68]
-      DOWN: [40, 83]
-      RISE: [69]
-      LOWER: [81]
-      TILTRIGHT: [84]
-      TILTLEFT: [82]
-    }
-    @downKeys = {}
 
   initControls: ->
     return if @initialized
@@ -49,34 +50,51 @@ lib.export('FirstPerson', class FirstPerson
 
         lastPos = [x, y]
 
-    $(document).keydown(((e) ->
-      console.log(e.keyCode)
-      @downKeys[e.keyCode] = true
-    ).bind(this))
-    $(document).keyup(((e) ->
-      @downKeys[e.keyCode] = false
-    ).bind(this))
+    #$(document).keydown(((e) ->
+      #console.log(e.keyCode)
+      #@downKeys[e.keyCode] = true
+    #).bind(this))
+    #$(document).keyup(((e) ->
+      #@downKeys[e.keyCode] = false
+    #).bind(this))
 
   update: (delta) ->
-    for keyset of @keys
-      for key in @keys[keyset]
-        if @downKeys[key]
-          if keyset == 'RISE'
-            @camera.position.y += delta / @speed
-          if keyset == 'LOWER'
-            @camera.position.y -= delta / @speed
-          else if keyset == 'UP'
-            @walkForward(delta / @speed)
-          else if keyset == 'DOWN'
-            @walkBackward(delta / @speed)
-          else if keyset == 'LEFT'
-            @strafeLeft(delta / @speed)
-          else if keyset == 'RIGHT'
-            @strafeRight(delta / @speed)
-          else if keyset == 'TILTRIGHT'
-            @tilt += .1
-          else if keyset == 'TILTLEFT'
-            @tilt -= .1
+    return if not @interactive
+    #for keyset of @keys
+      #for key in @keys[keyset]
+        #if @downKeys[key]
+          #if keyset == 'RISE'
+            #@camera.position.y += delta / @speed
+          #if keyset == 'LOWER'
+            #@camera.position.y -= delta / @speed
+          #else if keyset == 'UP'
+            #@walkForward(delta / @speed)
+          #else if keyset == 'DOWN'
+            #@walkBackward(delta / @speed)
+          #else if keyset == 'LEFT'
+            #@strafeLeft(delta / @speed)
+          #else if keyset == 'RIGHT'
+            #@strafeRight(delta / @speed)
+          #else if keyset == 'TILTRIGHT'
+            #@tilt += .1
+          #else if keyset == 'TILTLEFT'
+            #@tilt -= .1
+    if @keys.isActive 'rise'
+      @camera.position.y += delta / @speed
+    if @keys.isActive 'lower'
+      @camera.position.y -= delta / @speed
+    if @keys.isActive 'up'
+      @walkForward(delta / @speed)
+    if @keys.isActive 'down'
+      @walkBackward(delta / @speed)
+    if @keys.isActive 'left'
+      @strafeLeft(delta / @speed)
+    if @keys.isActive 'right'
+      @strafeRight(delta / @speed)
+    if @keys.isActive 'tiltright'
+      @tilt += .1
+    if @keys.isActive 'tiltleft'
+      @tilt -= .1
 
   rotateY: (degrees) ->
     radians = degrees * Math.PI / 180

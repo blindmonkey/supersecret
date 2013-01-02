@@ -143,8 +143,14 @@ lib.export('FaceManager', class supersecret.FaceManager
       @geometry.elementsNeedUpdate = true
       @geometry.facesNeedUpdate = true
     if doubleSided
-      @addFace(a, c, b)
+      @addFace(a, c, b, properties)
     return face
+
+  addFace4: (a, b, c, d, properties, doubleSided) ->
+    faces = []
+    faces.push @addFace(a, b, c, properties, doubleSided)
+    faces.push @addFace(a, c, d, properties, doubleSided)
+    return faces
 
   addFaces: (faces) ->
     @addFace(face.a, face.b, face.c) for face in faces
