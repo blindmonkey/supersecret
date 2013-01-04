@@ -1,3 +1,5 @@
+lib.load('now')
+
 lib.export('Updater', class Updater
   constructor: (frequency) ->
     @frequency = frequency

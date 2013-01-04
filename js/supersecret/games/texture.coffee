@@ -2,6 +2,7 @@ lib.load(
   'firstperson'
   'pixels'
   'polygons'
+  'tracker'
   'worker'
   -> supersecret.Game.loaded = true)
 
@@ -26,18 +27,20 @@ class CubePhysics
 
 generateTexture = ->
   canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 256
+  canvas.width = 2048
+  canvas.height = 1024
   cx = canvas.width / 2
   cy = canvas.height / 2
   context = canvas.getContext('2d')
   pixels = new Pixels(context)
   noise = new SimplexNoise()
 
-  worker = new NestedForWorker([[0, canvas.width - 1], [0, canvas.height - 1]], (x, y) ->
-    n = noise.noise2D(x / 32, y / 32)
+  worker = new NestedForWorker([[0, canvas.width - 1], [0, canvas.height - 1]], (xx, yy) ->
+    [x, y, z] = vectorFromLatLng(yy / canvas.height * Math.PI, xx / canvas.width * Math.PI * 2)
+    n = noise.noise3D(x / 2, y / 2, z / 2)
     color = if n > 0 then new Color(255, 0, 0) else new Color(0, 128, 0)
-    pixels.set(x, y, color)
+    # color = new Color((n + 1) / 2 * 255, 0, 0)
+    pixels.set(xx, yy, color)
   )
   worker.synchronous = true
   worker.run()
@@ -52,23 +55,30 @@ generateTexture = ->
 distance2 = (x, y) ->
   Math.sqrt(x*x + y*y)
 
+modulus = (n, r) ->
+  while n < 0
+    n += r
+  while n > r
+    n -= r
+  return n
+
 latLongFrom3D = (x, y, z) ->
   long = Math.atan2(z, x)
-  lat = Math.atan2(y, distance2(x, z))
-  return [lat, long]
-  PI2 = Math.PI * 2
-  while long < 0
-    long += PI2
-  while long > PI2
-    long -= PI2
-  while lat < 0
-    lat += PI2
-  while lat > PI2
-    lat -= PI2
+  d = distance2(x, z)
+  lat = Math.atan2(y, d)
+  return [(lat + Math.PI / 2) / Math.PI, (long + Math.PI) / Math.PI / 2]
 
+vectorFromLatLng = (lat, lng) ->
+  r = Math.cos(lat)
+  y = Math.sin(lat)
+  x = Math.cos(lng) * r
+  z = Math.sin(lng) * r
+  return [x, y, z]
 
-  return [lat - Math.PI / 2, long - Math.PI]
-
+cap = (n, r1, r2) ->
+  return n if r1 <= n <= r2
+  return r1 if n < r1
+  return r2 if n > r2
 
 
 supersecret.Game = class NewGame extends supersecret.BaseGame
@@ -83,7 +93,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     console.log(@watch)
     geometry = new polygons.sphere(10, @watched.iterations)
+    console.log('dhsfkhadkshfkah', latLongFrom3D(0, 1, 0))
+    tracker = new Tracker()
 
+    debugger
     for faceIndex in [0..geometry.faces.length-1]
       face = geometry.faces[faceIndex]
       va = geometry.vertices[face.a]
@@ -92,11 +105,66 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       alatlng = latLongFrom3D(va.x, va.y, va.z)
       blatlng = latLongFrom3D(vb.x, vb.y, vb.z)
       clatlng = latLongFrom3D(vc.x, vc.y, vc.z)
+
+      # console.log( ayn, byn, cyn)
+      tracker.track({'lat': alatlng[0]})
+      tracker.track({'lat': blatlng[0]})
+      tracker.track({'lat': clatlng[0]})
+      tracker.track({'lng': alatlng[1]})
+      tracker.track({'lng': blatlng[1]})
+      tracker.track({'lng': clatlng[1]})
+      abdiff = -> Math.abs(alatlng[1] - blatlng[1])
+      acdiff = -> Math.abs(alatlng[1] - clatlng[1])
+      bcdiff = -> Math.abs(blatlng[1] - clatlng[1])
+      while abdiff() > 0.6 or acdiff() > 0.6 or bcdiff() > 0.6
+        if abdiff() > 0.6
+          if alatlng[1] < blatlng[1]
+            alatlng[1] += 1
+          else
+            blatlng[1] += 1
+        if acdiff() > 0.6
+          if alatlng[1] < clatlng[1]
+            alatlng[1] += 1
+          else
+            clatlng[1] += 1
+        if bcdiff() > 0.6
+          if blatlng[1] < clatlng[1]
+            blatlng[1] += 1
+          else
+            clatlng[1] += 1
+      tracker.track({'lngspread': acdiff()})
+      tracker.track({'lngspread': bcdiff()})
+      tracker.track({'lngspread': abdiff()})
+
       geometry.faceVertexUvs[ 0 ].push( [
-          new THREE.UV( alatlng[0] / Math.PI / 4, alatlng[1] / Math.PI / 2 ),
-          new THREE.UV( blatlng[0] / Math.PI / 4, blatlng[1] / Math.PI / 2 ),
-          new THREE.UV( clatlng[0] / Math.PI / 4, clatlng[1] / Math.PI / 2 )
+          new THREE.UV( alatlng[1], alatlng[0]),
+          new THREE.UV( blatlng[1], blatlng[0]),
+          new THREE.UV( clatlng[1], clatlng[0])
       ] );
+    console.log(tracker.get('lat', 'lng', 'lngspread'))
+
+
+    # face = geometry.faces[0]
+    # va = geometry.vertices[face.a]
+    # @scene.add m = new THREE.Mesh(
+    #   new THREE.SphereGeometry(.01, 4, 4),
+    #   new THREE.LineBasicMaterial({color: 0xff0000}))
+    # m.position = va
+    # vb = geometry.vertices[face.b]
+    # @scene.add m = new THREE.Mesh(
+    #   new THREE.SphereGeometry(.01, 4, 4),
+    #   new THREE.LineBasicMaterial({color: 0xff0000}))
+    # m.position = vb
+    # vc = geometry.vertices[face.c]
+    # alatlng = latLongFrom3D(va.x, va.y, va.z)
+    # blatlng = latLongFrom3D(vb.x, vb.y, vb.z)
+    # clatlng = latLongFrom3D(vc.x, vc.y, vc.z)
+    # geometry.faceVertexUvs[0].push([
+    #   new THREE.UV(0, 0)
+    #   new THREE.UV(0, 1)
+    #   new THREE.UV(1, 1)
+    # ])
+
     geometry.computeCentroids()
     geometry.computeVertexNormals()
     geometry.computeFaceNormals()
@@ -112,7 +180,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     mesh = new THREE.Mesh(
       geometry
       new THREE.MeshBasicMaterial({
-        # color: 0xbb6030,
+        # vertexColors: THREE.VertexColors})
+        color: 0xffffff,
         shading: THREE.Smooth
         map: texture})
       # new THREE.LineBasicMaterial({color: 0x801020})
