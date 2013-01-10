@@ -3,6 +3,30 @@ lib.load(
   'treedeque'
   ->)
 
+averageVectors = (vectors...) ->
+  [ax, ay, az] = [0, 0, 0]
+  for vector in vectors
+    if vector instanceof Array
+      [x, y, z] = vector
+    else
+      [x, y, z] = [vector.x, vector.y, vector.z]
+    ax += x
+    ay += y
+    az += z
+  return [ax / vectors.length, ay / vectors.length, az / vectors.length]
+
+averageColors = (colors...) ->
+  [ar, ag, ab] = [0, 0, 0]
+  for color in colors
+    ab += color.b #color & 0xff
+    ag += color.g #(color >> 8) & 0xff
+    ar += color.r #(color >> 16) & 0xff
+  color = new THREE.Color(0)
+  color.setRGB(ar / colors.length, ag / colors.length, ab / colors.length)
+  return color
+
+console.log(averageColors(new THREE.Color(0x0000ff), new THREE.Color(0x0000ff), new THREE.Color(0x0000ff), new THREE.Color(0x0000ff)))
+
 lib.export('FaceManager', class supersecret.FaceManager
   constructor: (faceBufferCount, materials) ->
     @faceBufferCount = faceBufferCount || 100
@@ -148,8 +172,41 @@ lib.export('FaceManager', class supersecret.FaceManager
 
   addFace4: (a, b, c, d, properties, doubleSided) ->
     faces = []
-    faces.push @addFace(a, b, c, properties, doubleSided)
-    faces.push @addFace(a, c, d, properties, doubleSided)
+    vc = properties.vertexColors
+    face1properties =
+      normal: properties.normal
+      color: properties.color
+      materialIndex: properties.materialIndex
+      vertexColors: [vc[0], vc[1], vc[2]]
+    face2properties =
+      normal: properties.normal
+      color: properties.color
+      materialIndex: properties.materialIndex
+      vertexColors: [vc[0], vc[2], vc[3]]
+    faces.push @addFace(a, b, c, face1properties, doubleSided)
+    faces.push @addFace(a, c, d, face2properties, doubleSided)
+    return faces
+
+  addComplexFace4: (a, b, c, d, properties, doubleSided) ->
+    faces = []
+    vc = properties.vertexColors
+    createProperties = (vertexColors) ->
+      return {
+        normal: properties.normal
+        color: properties.color
+        materialIndex: properties.materialIndex
+        vertexColors: vertexColors
+      }
+    e = averageVectors(a, b, c, d)
+    ecolor = null
+    if properties.vertexColors
+      ecolor = averageColors(properties.vertexColors...)
+    faces.push @addFace(a, b, e, createProperties([properties.vertexColors[0], properties.vertexColors[1], ecolor]), doubleSided)
+    faces.push @addFace(b, c, e, createProperties([properties.vertexColors[1], properties.vertexColors[2], ecolor]), doubleSided)
+    faces.push @addFace(c, d, e, createProperties([properties.vertexColors[2], properties.vertexColors[3], ecolor]), doubleSided)
+    faces.push @addFace(d, a, e, createProperties([properties.vertexColors[3], properties.vertexColors[0], ecolor]), doubleSided)
+    #faces.push @addFace(a, b, c, face1properties, doubleSided)
+    #faces.push @addFace(a, c, d, face2properties, doubleSided)
     return faces
 
   addFaces: (faces) ->

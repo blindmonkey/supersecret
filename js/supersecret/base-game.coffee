@@ -62,6 +62,9 @@ class Renderer
     }
 
 supersecret.BaseGame = class BaseGame
+  setClearColor: (hexColor=0, opacity=1) ->
+    @renderer.renderer.setClearColorHex(hexColor, opacity)
+
   constructor: (container, width, height, opt_scene, opt_camera) ->
     @transforms =
       fov: (v) -> parseFloat(v)
