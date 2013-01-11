@@ -9,7 +9,11 @@ lib.export('NoiseGenerator', class NoiseGenerator
       scale = layer.scale or 1
       offset = layer.offset or 0
       multiplier = layer.multiplier or 1
-      s += @noise.noise2D(x * scale, y * scale) * multiplier - offset
+      n = @noise.noise2D(x * scale, y * scale) * multiplier - offset
+      if layer.op
+        s = layer.op(s, n)
+      else
+        s += n
     return s
 
   noise3D: (x, y, z) ->

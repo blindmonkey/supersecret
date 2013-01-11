@@ -1,11 +1,4 @@
 (function() {
-  var inWorker = false;
-  try {
-    var w = window;
-  } catch (error) {
-    inWorker = true;
-  }
-  
   var argumentsToArray = function(args) {
     var array = [];
     for (var i = 0; i < args.length; i++) {
@@ -13,10 +6,10 @@
     }
     return array;
   };
-  
+
   var LOG_TYPE = '__console.log',
       ERROR_TYPE = '__console.error';
-  if (inWorker) {
+  if (window.inWorker) {
     var console = {}
     console.log = function() {
       self.postMessage({type: LOG_TYPE, message: argumentsToArray(arguments)})
@@ -27,11 +20,11 @@
     self.console = console;
   } else {
     console = window.console;
-    
+
     var concatArrayLike = function(name, arrayLike) {
-      
+
     };
-    
+
     window.console.handleConsoleMessages = function(name, otherwise) {
       if (!otherwise) {
         otherwise = name;

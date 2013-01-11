@@ -33,6 +33,7 @@ window.lib.percentage = ->
   return loadedCount / (loadingCount + loadedCount)
 
 window.lib.load = (names..., callback) ->
+  console.log('linload')
   if typeof callback == 'string'
     names.push callback
   else
