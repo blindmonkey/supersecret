@@ -23,6 +23,7 @@ window.lib.export = (name, object) ->
   window[name] = object
 
 window.lib.load = (names..., callback) ->
+  console.log('linload')
   if typeof callback == 'string'
     names.push callback
   else
@@ -47,7 +48,8 @@ window.lib.load = (names..., callback) ->
             cb()
     )
 
-params = getQueryParams()
-CoffeeScript.load('js/supersecret/games/' + params.game + '.coffee', ->
-  console.log('Game loaded');
-)
+if not (window.self and self.inWorker)
+  params = getQueryParams()
+  CoffeeScript.load('js/supersecret/games/' + params.game + '.coffee', ->
+    console.log('Game loaded');
+  )
