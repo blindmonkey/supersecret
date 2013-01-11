@@ -1,6 +1,6 @@
 (function() {
 
-DEBUG = {
+var DEBUG = {
   expose: function(name, f) {
     DEBUG.debugObject[name] = f
   },

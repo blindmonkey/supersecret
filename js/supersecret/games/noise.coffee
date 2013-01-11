@@ -181,6 +181,7 @@ supersecret.Game = class NoiseGame extends supersecret.BaseGame
   @loaded: false
 
   postinit: ->
+    #bg=87CEFA&bgo=1&cfar=100000&chunksize=16&seed=awesome&speed=1&scale=12&colors=0,0000ff:2,cc9933:7,66ff00:12,33ff00:18,00ff00:25,00cc00:33,00cc00:40,339900:45,009900:55,006600:70,336600:80,666600:90,996600:100,664533:140,999999:150,eeeeee&noise=+.01,10+.03,4+.05,3+.09,.9+.12,.7+.2,.6+.35,.5+.5,.3+.8,.1+1.5,.05+2,.04+4,.03*.02,2
     @scene.fog = new THREE.FogExp2( 0x333333, 0.00008 );
     @person = new FirstPerson(container, @camera)
     @setTransform('speed', parseFloat)

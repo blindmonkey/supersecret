@@ -17,6 +17,7 @@ window.lib.handle = (event, handler) ->
   window.lib.events[event].push handler
 
 window.lib.fire = (event, args...) ->
+  return if event not of window.lib.events
   for handler in window.lib.events[event]
     return if handler(args...) is false
 
