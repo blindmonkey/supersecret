@@ -18,6 +18,7 @@ class Renderer
     @renderer.sortObjects = false
     @renderer.setClearColorHex( 0x000000, 1 )
     @renderer.setSize(width, height)
+    console.log('============================ adding renderer')
     $(container).append(@renderer.domElement)
 
   resize: (width, height) ->

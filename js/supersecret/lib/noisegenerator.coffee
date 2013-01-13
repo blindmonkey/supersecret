@@ -1,7 +1,15 @@
+console.log('====== NOISEGENERATOR LOADINGGGS')
+
 lib.export('NoiseGenerator', class NoiseGenerator
   constructor: (noise, description) ->
     @noise = noise
     @description = description
+
+  getMaxValue: ->
+    s = 0
+    for layer in @description
+      s += (layer.multiplier or 1)
+    return s
 
   noise2D: (x, y) ->
     s = 0
