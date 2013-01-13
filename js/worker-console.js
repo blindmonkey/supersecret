@@ -26,10 +26,10 @@
     };
 
     window.console.handleConsoleMessages = function(name, otherwise) {
-      if (!otherwise) {
-        otherwise = name;
-        name = 'WORKER';
-      }
+//      if (!otherwise) {
+//        otherwise = name;
+//        name = 'WORKER';
+//      }
       return function(event) {
         var data = event.data;
         if (data.type && data.type === LOG_TYPE) {
@@ -37,7 +37,7 @@
         } else if (data.type && data.type === ERROR_TYPE) {
           console.error.apply(console, [name + ':'].concat(data.message));
         } else {
-          otherwise(event);
+          otherwise && otherwise(event);
         }
       };
     };

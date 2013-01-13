@@ -32,6 +32,9 @@ window.lib.export = function(name, object) {
   window[name] = object;
 };
 
+/**
+ * Get the loading progress percentage.
+ */
 window.lib.percentage = function() {
   var n;
   var loadingCount = 0;
@@ -51,29 +54,34 @@ window.lib.load = function() {
     window.lib.handle('done', callback);
   }
   
+  var callbackForName = function(name) {
+    return function() {
+      console.log('Loaded ' + name);
+      delete window.lib.loading[name];
+      window.lib.cache[name] = true;
+      window.lib.fire('loaded', name);
+      var allLoaded = true;
+      for (var n in window.lib.loading) {
+        allLoaded = false;
+        break;
+      }
+      if (allLoaded) {
+        console.log("Loading complete. Callbacks called from load request for " + names);
+        window.lib.fire('done');
+      }
+    };
+  };
+  
   window.lib.fire('request', names);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     if (name in window.lib.cache || name in window.lib.loading) continue;
     console.log("Loading " + name);
     window.lib.loading[name] = true;
-    CoffeeScript.load('js/supersecret/lib/' + name + '.coffee',
-      (function(name) {
-        return function() {
-          console.log('Loaded ' + name);
-          delete window.lib.loading[name];
-          window.lib.cache[name] = true;
-          window.lib.fire('loaded', name);
-          var allLoaded = true;
-          for (var n in window.lib.loading) {
-            allLoaded = false;
-            break;
-          }
-          if (allLoaded) {
-            console.log("Loading complete. Callbacks called from load request for " + names);
-            window.lib.fire('done');
-          }
-        };
-      })(name));
+    var url = 'js/supersecret/lib/' + name + '.coffee';
+    if (window.baseURL) {
+      url = window.baseURL + url;
+    }
+    CoffeeScript.load(url, callbackForName(name));
   }
 };

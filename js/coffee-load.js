@@ -11,9 +11,14 @@ CoffeeScript.load = function(url, callback) {
   xmlhttp.send();
   if (xmlhttp.status == 200) {
     compiled = CoffeeScript.compile(xmlhttp.responseText)
-    console.log('evaluating')
-    eval(compiled);
-    console.log('evaluated')
+    console.log('evaluating', compiled)
+    try {
+      eval(compiled);
+      console.log('evaluated')
+    } catch (error) {
+      console.error('An error occurred while evaluating ' + url)
+      console.error(error.message);
+    }
   } else
     console.error('Could not load ' + url);
   callback && callback();

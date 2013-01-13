@@ -1,5 +1,6 @@
 lib.load(
   'webworkers'
+  'worker-comm'
   -> supersecret.Game.loaded = true)
 
 class supersecret.Game
@@ -12,68 +13,50 @@ class supersecret.Game
 
     baseURL = location.href.split('#')[0].split('?')[0].split('/')[0..-2].join('/') + '/'
     console.log('baseURL is #{baseURL}')
-
-
-    #worker = webworker.fromCoffee(
-    """
-      self.baseURL = '#{baseURL}'
-      importScripts(baseURL + 'js/coffee-script.js')
-      importScripts(baseURL + 'js/worker-console.js')
-      importScripts(baseURL + 'js/coffee-load.js')
-      self.window = self
-      self.inWorker = true
-
-      CoffeeScript.load('js/supersecret/game-loader.coffee')
-
-      lib.load('id', ->
-        console.log('ID loaded. The id of 123 is ' + generateId(123)))
-
-      self.onmessage = (e) ->
-        message = e.data
-        if message.type == 'query'
-          self.postMessage(message.data)
-        else if message.type == 'location'
-          #self.postMessage(generateId([1, 2, 3]))
-          self.postMessage('LOCATION LOCATION LOCATION')
-        else if message.type == 'respond'
-          self.postMessage(CoffeeScript.compile('1+1'))
-        else
-          self.postMessage('Unknown command')
-    """#)
     worker = webworker.fromCoffee([
-        'js/worker-console.js'
+        #'js/worker-console.js'
         'js/coffee-script.js'
-        'js/supersecret/first-person.coffee'
-        #'grid'
+        #'js/test/simple.coffee'
+        #'js/supersecret/first-person.coffee'
+        'grid'
+        'worker-comm'
       ], """
-      console.log('hello, world!')
-
-      self.onmessage = (e) ->
-        message = e.data
-        if message.type == 'query'
-          self.postMessage(message.data)
-        else if message.type == 'location'
-          #self.postMessage(generateId([1, 2, 3]))
-          self.postMessage('LOCATION LOCATION LOCATION')
-        else if message.type == 'respond'
-          self.postMessage(CoffeeScript.compile('1+1'))
-        else
-          self.postMessage('Unknown command')
+      #console.log('hello, world!')
+      
+      comm = new WorkerComm(self, {
+        test: (a, b) ->
+          comm.console.log('in test');
+          return a + b
+      });
+      comm.ready()
+      comm.console.log('worker is ready')
+      comm.call('test2', 4, 5, (result) ->
+        comm.console.log('IN WORKER, result came in: ' + result)
+      )
     """)
 
-    worker.onmessage = console.handleConsoleMessages('worker1', (e) ->
-      console.log('from worker: ', e.data)
+    worker.onmessage = console.handleConsoleMessages('worker1')
+    
+    comm = new WorkerComm(worker, {
+      test2: (a, b) ->
+        return a * b
+    })
+    comm.handleReady(->
+      comm.ready()
+      comm.call('test', 1, 2, (result) ->
+        console.log('Callback for test' + result)
+      )
     )
-    worker.onerror = (e) ->
-      console.error(e)
-    worker.postMessage({
-      type: 'location'
-    })
-    worker.postMessage({
-      type: 'query'
-      data: 'hey hi'
-    })
-    worker.postMessage({
-      type: 'respond'
-      data: 'hey hi'
-    })
+    #worker.onerror = (e) ->
+      #console.error(e)
+    #worker.postMessage({
+      #type: 'location'
+    #})
+    #worker.postMessage({
+      #type: 'query'
+      #data: 'hey hi'
+    #})
+    #worker.postMessage({
+      #type: 'respond'
+      #data: 'hey hi'
+    #})
