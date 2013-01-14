@@ -1,3 +1,180 @@
+terrainWorkerCode = """
+console.log('hello from worker')
+
+getIndex = (size, x, y) ->
+  return y * size + x
+
+randomoffset = ->
+  return {
+    x: (Math.random() * 2 - 1) * 100
+    y: (Math.random() * 2 - 1) * 100
+  }
+
+seed = undefined
+description = [{
+    scale: .01
+    multiplier: 10
+    offset: randomoffset()
+  }, {
+    scale: .03
+    multiplier: 4
+    offset: randomoffset()
+  }, {
+    scale: .05
+    multiplier: 3
+    offset: randomoffset()
+  }, {
+    scale: .09
+    multiplier: .9
+    offset: randomoffset()
+  }, {
+    scale: .12
+    multiplier: .7
+    offset: randomoffset()
+  }, {
+    scale: .2
+    multiplier: .6
+    offset: randomoffset()
+  }, {
+    scale: .35
+    multiplier: .5
+  }, {
+    scale: .5
+    multiplier: .3
+  }, {
+    scale: .8
+    multiplier: .1
+  }, {
+    scale: 1.5
+    multiplier: .05
+  }, {
+    scale: 2
+    multiplier: .04
+  }, {
+    scale: 4
+    multiplier: .03
+  }, {
+    scale: .02
+    multiplier: 2
+  }
+]
+# description = [{
+#   scale: 0.0001
+#   multiplier: 128
+# }]
+noise = null
+initGenerator = ->
+  # Math.seedrandom(seed)
+  console.log('Reinitializing noise with ', description)
+  noise = new NoiseGenerator(
+    new SimplexNoise(Math.random), description)
+
+generateGeometry = (offset, density, size) ->
+  [ox, oy] = offset
+  t = new Date().getTime()
+  maxheight = noise.getMaxValue()
+
+  getColor = (n) ->
+    n = n / maxheight
+    return 0x0000ff if n < 0
+    return 0x00ff00 if n < .3
+    return 0xff6633 if n < .6
+    return 0xffffff
+    return Math.floor(n / maxheight * 256)
+
+
+  faces = new FaceManager(500)
+  for y in [1..density-1]
+    for x in [1..density-1]
+      xl = (x - 1) / (density-1) * size
+      xs = x / (density-1) * size
+      yl = (y - 1) / (density-1) * size
+      ys = y / (density-1) * size
+
+      n_xl_yl = noise.noise2D(xl + ox, yl + oy)
+      n_xs_yl = noise.noise2D(xs + ox, yl + oy)
+      n_xl_ys = noise.noise2D(xl + ox, ys + oy)
+      n_xs_ys = noise.noise2D(xs + ox, ys + oy)
+
+      faces.addComplexFace4(
+        [xl, n_xl_ys, ys]
+        [xs, n_xs_ys, ys]
+        [xs, n_xs_yl, yl]
+        [xl, n_xl_yl, yl]
+        {
+          vertexColors: [
+            new THREE.Color(getColor(n_xl_ys))
+            new THREE.Color(getColor(n_xs_ys))
+            new THREE.Color(getColor(n_xs_yl))
+            new THREE.Color(getColor(n_xl_yl))
+          ]
+        }
+      )
+  geometry = faces.generateGeometry()
+  geometry.computeFaceNormals()
+  console.log("Geometry generated in " + (new Date().getTime() - t) + 'ms')
+  return geometry
+
+comm = new WorkerComm(self, {
+  init: ->
+    console.log('init!')
+    initGenerator()
+  setSeed: (newSeed) ->
+    setSeed = newSeed
+    initGenerator()
+  setNoise: (newDescription) ->
+    description = newDescription
+
+    initGenerator()
+  test: (a, b) ->
+    console.log('test!')
+    return a + b
+  geometry: generateGeometry
+  geometry2: (size, tilesize) ->
+    console.log('geo')
+    t = new Date().getTime()
+    geo = new THREE.Geometry()
+    # faces = new FaceManager(500)
+    for y in [0..size-1]
+      for x in [0..size-1]
+        n = noise.noise2D(x, y)
+        geo.vertices.push new THREE.Vector3(x * tilesize, n, y * tilesize)
+        if x > 0 and y > 0
+          face1 = new THREE.Face3(getIndex(size, x, y), getIndex(size, x, y - 1), getIndex(size, x - 1, y))
+          face2 = new THREE.Face3(getIndex(size, x, y - 1), getIndex(size, x - 1, y - 1), getIndex(size, x - 1, y))
+          geo.faces.push(face1)
+          geo.faces.push(face2)
+          for face in [face1, face2]
+            for vertexFaceIndex in [0..2]
+              vertexIndex = face[['a', 'b', 'c'][vertexFaceIndex]]
+              vertex = geo.vertices[vertexIndex]
+              if vertex.y < 0
+                color = new THREE.Color(0x0000ff)
+              else
+                color = new THREE.Color(0x00ff00)
+              face.vertexColors[vertexFaceIndex] = color
+
+    comm.console.log("Geometry generation finished in " + (new Date().getTime() - t) + "s")
+    geo.computeFaceNormals()
+    return geo
+})
+comm.ready()
+comm.handleReady(->
+  comm.console.log('uhh hey...')
+  )
+"""
+terrainWorkerDeps = [
+  'js/three.min.js'
+  'js/seededrandom.js'
+  'js/coffee-script.js'
+  'js/worker-console.js'
+  'js/simplex-noise.js'
+  'worker-comm'
+  'facemanager'
+  'noisegenerator'
+  # 'grid'
+  #'worker-console'
+]
 terrainWorker = null
 
 # now = -> new Date().getTime()
@@ -11,202 +188,16 @@ lib.load(
   'webworkers'
   ->
     console.log('libs loaded')
-    terrainWorker = webworker.fromCoffee([
-      'js/three.min.js'
-      'js/seededrandom.js'
-      'js/coffee-script.js'
-      'js/worker-console.js'
-      'js/simplex-noise.js'
-      'worker-comm'
-      'facemanager'
-      'noisegenerator'
-      # 'grid'
-      #'worker-console'
-    ], """
-      console.log('hello from worker')
-
-      getIndex = (size, x, y) ->
-        return y * size + x
-
-      randomoffset = ->
-        return {
-          x: (Math.random() * 2 - 1) * 100
-          y: (Math.random() * 2 - 1) * 100
-        }
-
-      seed = undefined
-      description = [{
-          scale: .01
-          multiplier: 10
-          offset: randomoffset()
-        }, {
-          scale: .03
-          multiplier: 4
-          offset: randomoffset()
-        }, {
-          scale: .05
-          multiplier: 3
-          offset: randomoffset()
-        }, {
-          scale: .09
-          multiplier: .9
-          offset: randomoffset()
-        }, {
-          scale: .12
-          multiplier: .7
-          offset: randomoffset()
-        }, {
-          scale: .2
-          multiplier: .6
-          offset: randomoffset()
-        }, {
-          scale: .35
-          multiplier: .5
-        }, {
-          scale: .5
-          multiplier: .3
-        }, {
-          scale: .8
-          multiplier: .1
-        }, {
-          scale: 1.5
-          multiplier: .05
-        }, {
-          scale: 2
-          multiplier: .04
-        }, {
-          scale: 4
-          multiplier: .03
-        }, {
-          scale: .02
-          multiplier: 2
-        }
-      ]
-      # description = [{
-      #   scale: 0.0001
-      #   multiplier: 128
-      # }]
-      noise = null
-      initGenerator = ->
-        # Math.seedrandom(seed)
-        console.log('Reinitializing noise with ', description)
-        noise = new NoiseGenerator(
-          new SimplexNoise(Math.random), description)
-
-      generateGeometry = (offset, density, size) ->
-        [ox, oy] = offset
-        t = new Date().getTime()
-        maxheight = noise.getMaxValue()
-
-        getColor = (n) ->
-          n = n / maxheight
-          return 0x0000ff if n < 0
-          return 0x00ff00 if n < .3
-          return 0xff6633 if n < .6
-          return 0xffffff
-          return Math.floor(n / maxheight * 256)
-
-
-        faces = new FaceManager(500)
-        for y in [1..density-1]
-          for x in [1..density-1]
-            xl = (x - 1) / (density-1) * size
-            xs = x / (density-1) * size
-            yl = (y - 1) / (density-1) * size
-            ys = y / (density-1) * size
-
-            n_xl_yl = noise.noise2D(xl + ox, yl + oy)
-            n_xs_yl = noise.noise2D(xs + ox, yl + oy)
-            n_xl_ys = noise.noise2D(xl + ox, ys + oy)
-            n_xs_ys = noise.noise2D(xs + ox, ys + oy)
-
-            faces.addComplexFace4(
-              [xl, n_xl_ys, ys]
-              [xs, n_xs_ys, ys]
-              [xs, n_xs_yl, yl]
-              [xl, n_xl_yl, yl]
-              {
-                vertexColors: [
-                  new THREE.Color(getColor(n_xl_ys))
-                  new THREE.Color(getColor(n_xs_ys))
-                  new THREE.Color(getColor(n_xs_yl))
-                  new THREE.Color(getColor(n_xl_yl))
-                ]
-              }
-            )
-        geometry = faces.generateGeometry()
-        geometry.computeFaceNormals()
-        console.log("Geometry generated in " + (new Date().getTime() - t) + 'ms')
-        return geometry
-
-
-
-
-      comm = new WorkerComm(self, {
-        init: ->
-          console.log('init!')
-          initGenerator()
-        setSeed: (newSeed) ->
-          setSeed = newSeed
-          initGenerator()
-        setNoise: (newDescription) ->
-          description = newDescription
-
-          initGenerator()
-        test: (a, b) ->
-          console.log('test!')
-          return a + b
-        geometry: generateGeometry
-        geometry2: (size, tilesize) ->
-          console.log('geo')
-          t = new Date().getTime()
-          geo = new THREE.Geometry()
-          # faces = new FaceManager(500)
-          for y in [0..size-1]
-            for x in [0..size-1]
-              n = noise.noise2D(x, y)
-              geo.vertices.push new THREE.Vector3(x * tilesize, n, y * tilesize)
-              if x > 0 and y > 0
-                face1 = new THREE.Face3(getIndex(size, x, y), getIndex(size, x, y - 1), getIndex(size, x - 1, y))
-                face2 = new THREE.Face3(getIndex(size, x, y - 1), getIndex(size, x - 1, y - 1), getIndex(size, x - 1, y))
-                geo.faces.push(face1)
-                geo.faces.push(face2)
-                for face in [face1, face2]
-                  for vertexFaceIndex in [0..2]
-                    vertexIndex = face[['a', 'b', 'c'][vertexFaceIndex]]
-                    vertex = geo.vertices[vertexIndex]
-                    if vertex.y < 0
-                      color = new THREE.Color(0x0000ff)
-                    else
-                      color = new THREE.Color(0x00ff00)
-                    face.vertexColors[vertexFaceIndex] = color
-
-          comm.console.log("Geometry generation finished in " + (new Date().getTime() - t) + "s")
-          geo.computeFaceNormals()
-          return geo
-      })
-      comm.ready()
-      comm.handleReady(->
-        comm.console.log('uhh hey...')
-        )
-    """)
-    terrainWorker.onmessage = console.handleConsoleMessages('w1')
-    terrainWorker = new WorkerComm(terrainWorker, {});
-    terrainWorker.handleReady(->
-      supersecret.Game.loaded = true
-      terrainWorker.ready()
-      #console.log('worker is ready!')
-      #terrainWorker.call('test', 1, 2, (result) ->
-        #console.log('yo dawg')
-        #)
-      #terrainWorker.call('geometry', (geo) ->
-          #console.log('geometry received', geo)
-        #)
-    )
-    #terrainWorker.onmessage = console.handleConsoleMessages('worker1')
-
-    #terrainWorker.handleReady(->
-    #)
+    createTerrainWorker = ->
+      worker = webworker.fromCoffee(terrainWorkerDeps, terrainWorkerCode)
+      worker.onmessage = console.handleConsoleMessages('w1')
+      worker = new WorkerComm(worker, {});
+      worker.handleReady(->
+        supersecret.Game.loaded = true
+        worker.ready()
+      )
+      return worker
+    terrainWorker = createTerrainWorker()
 )
 
 serializer = {
@@ -303,8 +294,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @loading = 0
 
   postinit: ->
+    @camera.position.y = 500
     @person = new FirstPerson(container, @camera)
-    # @person.pitch = 0
+    @person.pitch = Math.PI / 4
+    @person.updateCamera()
     @setTransform('speed', parseFloat)
     @watch('speed', (v) =>
       @person.speed = v
@@ -341,7 +334,6 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       terrainWorker.call('setNoise', layers, ->)
 
     )
-    @camera.position.y = 20
 
   generateChunk: (cx, cy) ->
     return false if @loading > 10
@@ -352,7 +344,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         chunkcenterx, 50, chunkcentery)
 
     levels = [
-      # [50, 128]
+      [20, 1024]
+      [30, 512]
+      [40, 256]
+      [50, 128]
       [100, 64]
       [200, 32]
       [400, 16]
@@ -378,7 +373,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         [density, oldmesh, status] = oldmesh
         if density < targetDensity and not status
           density *= 2
-        else if density > targetDensity
+        else if density > targetDensity and not status
           density = targetDensity
         else
           # console.log('density is fine...' + density, @targetDensity)
@@ -448,7 +443,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     cx = Math.floor(@camera.position.x / @chunksize)
     cy = Math.floor(@camera.position.z / @chunksize)
-    spiral(cx, cy, 81, (x, y) =>
+    spiral(cx, cy, 50*50, (x, y) =>
       @generateChunk(x, y)
     )
     @person.update(delta)
