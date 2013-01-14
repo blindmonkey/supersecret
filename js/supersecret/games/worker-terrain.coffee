@@ -89,6 +89,7 @@ lib.load(
       noise = null
       initGenerator = ->
         # Math.seedrandom(seed)
+        console.log('Reinitializing noise with ', description)
         noise = new NoiseGenerator(
           new SimplexNoise(Math.random), description)
 
@@ -144,6 +145,13 @@ lib.load(
       comm = new WorkerComm(self, {
         init: ->
           console.log('init!')
+          initGenerator()
+        setSeed: (newSeed) ->
+          setSeed = newSeed
+          initGenerator()
+        setNoise: (newDescription) ->
+          description = newDescription
+
           initGenerator()
         test: (a, b) ->
           console.log('test!')
@@ -217,6 +225,32 @@ serializer.teach = (name, serialize, deserialize) ->
     deserialize: deserialize
 
 identity = (o) -> o
+serializer.teach('RawGeometry', identity, ((o) ->
+  # geo = new THREE.Geometry()
+  o.__proto__ = THREE.Geometry.prototype
+  for p of o
+    if p == 'vertices'
+      for v in o.vertices
+        v.__proto__ = THREE.Vector3.prototype
+        #geo.vertices.push new THREE.Vector3(v.x, v.y, v.z)
+    else if p == 'faces'
+      for f in o.faces
+        f.__proto__ = THREE.Face3.prototype
+        # geo.faces.push face = new THREE.Face3(f.a, f.b, f.c)
+        # face.normal = new THREE.Vector3(f.normal.x, f.normal.y, f.normal.z)
+        f.normal.__proto__ = THREE.Vector3.prototype
+        if f.vertexColors.length > 0
+          for vertexColorIndex in [0..f.vertexColors.length-1]
+            # color = new THREE.Color(0)
+            c = f.vertexColors[vertexColorIndex]
+            c.__proto__ = THREE.Color.prototype
+            # color.setRGB(c.r, c.g, c.b)
+            # face.vertexColors[vertexColorIndex] = color
+    # else
+    #   geo[p] = o[p]
+  # return geo)
+  return o)
+)
 serializer.teach('Geometry', identity, ((o) ->
   geo = new THREE.Geometry()
   for p of o
@@ -225,12 +259,15 @@ serializer.teach('Geometry', identity, ((o) ->
         geo.vertices.push new THREE.Vector3(v.x, v.y, v.z)
     else if p == 'faces'
       for f in o.faces
+        # f.__proto__ = THREE.Face3.prototype
         geo.faces.push face = new THREE.Face3(f.a, f.b, f.c)
         face.normal = new THREE.Vector3(f.normal.x, f.normal.y, f.normal.z)
+        # f.normal.__proto__ = THREE.Vector3.prototype
         if f.vertexColors.length > 0
           for vertexColorIndex in [0..f.vertexColors.length-1]
             color = new THREE.Color(0)
             c = f.vertexColors[vertexColorIndex]
+            # c.__proto__ = THREE.Color.prototype
             color.setRGB(c.r, c.g, c.b)
             face.vertexColors[vertexColorIndex] = color
     else
@@ -244,6 +281,17 @@ distance = (x1, y1, z1, x2, y2, z2) ->
   zd = z2 - z1
   return Math.sqrt(zd*zd + yd*yd + xd*xd)
 
+spiral = (cx, cy, distance, f) ->
+  x = y = 0
+  dx = 0
+  dy = -1
+  for i in [0..distance]
+    return if f(cx + x, cy + y) is false
+    if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y)
+      [dx, dy] = [-dy, dx]
+    x += dx
+    y += dy
+
 supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
 
@@ -256,14 +304,47 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
   postinit: ->
     @person = new FirstPerson(container, @camera)
+    # @person.pitch = 0
     @setTransform('speed', parseFloat)
     @watch('speed', (v) =>
       @person.speed = v
     )
+    @watch('noise', (v) =>
+      return if not v
+      # The format is as follows:
+      # +#.#,#.#+#.#,#.#
+      layers = []
+      currentLayer = null
+      currentNumber = null
+      for char in v
+        switch char
+          when '+', '*'
+            if currentNumber?
+              currentLayer.multiplier = parseFloat(currentNumber)
+              currentNumber = null
+            if currentLayer
+              layers.push currentLayer
+            currentLayer = {}
+            if char == '*'
+              currentLayer.op = (a, b) -> a*((b+1)/2)
+          when '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'
+            if not currentNumber
+              currentNumber = ''
+            currentNumber += char
+          when ','
+            if currentNumber?
+              currentLayer.scale = parseFloat(currentNumber)
+              currentNumber = null
+      if currentNumber?
+        currentLayer.multiplier = parseFloat(currentNumber)
+      layers.push currentLayer
+      terrainWorker.call('setNoise', layers, ->)
+
+    )
     @camera.position.y = 20
 
   generateChunk: (cx, cy) ->
-    return if @loading > 10
+    return false if @loading > 10
     yp = @camera.position.y
     chunkcenterx = cx * @chunksize + @chunksize / 2
     chunkcentery = cy * @chunksize + @chunksize / 2
@@ -271,11 +352,13 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         chunkcenterx, 50, chunkcentery)
 
     levels = [
-      [50, 128]
+      # [50, 128]
       [100, 64]
       [200, 32]
       [400, 16]
       [800, 8]
+      [1000, 4]
+      [1600, 2]
     ]
 
     targetDensity = null
@@ -295,6 +378,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         [density, oldmesh, status] = oldmesh
         if density < targetDensity and not status
           density *= 2
+        else if density > targetDensity
+          density = targetDensity
         else
           # console.log('density is fine...' + density, @targetDensity)
           return
@@ -314,7 +399,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @loading--
       t = now()
       console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
-      geo = serializer.deserialize('Geometry', rawgeo)
+      geo = serializer.deserialize('RawGeometry', rawgeo)
       console.log('Geometry deserialized in ' + (now() - t) + 'ms')
       mesh = new THREE.Mesh(geo,
         # new THREE.MeshNormalMaterial()
@@ -363,7 +448,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     cx = Math.floor(@camera.position.x / @chunksize)
     cy = Math.floor(@camera.position.z / @chunksize)
-    for x in [-50..50]
-      for y in [-50..50]
-        @generateChunk(cx + x, cy + y)
+    spiral(cx, cy, 81, (x, y) =>
+      @generateChunk(x, y)
+    )
     @person.update(delta)
