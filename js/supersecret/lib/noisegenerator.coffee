@@ -1,4 +1,5 @@
 console.log('====== NOISEGENERATOR LOADINGGGS')
+defaultoffset = {x:0,y:0,z:0}
 
 lib.export('NoiseGenerator', class NoiseGenerator
   constructor: (noise, description) ->
@@ -15,9 +16,11 @@ lib.export('NoiseGenerator', class NoiseGenerator
     s = 0
     for layer in @description
       scale = layer.scale or 1
-      offset = layer.offset or 0
+      base = layer.base or 0
       multiplier = layer.multiplier or 1
-      n = @noise.noise2D(x * scale, y * scale) * multiplier - offset
+      offset = layer.offset or defaultoffset
+
+      n = @noise.noise2D((x - offset.x) * scale, (y - offset.y) * scale) * multiplier - base
       if layer.op
         s = layer.op(s, n)
       else

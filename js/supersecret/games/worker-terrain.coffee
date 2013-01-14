@@ -28,25 +28,37 @@ lib.load(
       getIndex = (size, x, y) ->
         return y * size + x
 
+      randomoffset = ->
+        return {
+          x: (Math.random() * 2 - 1) * 100
+          y: (Math.random() * 2 - 1) * 100
+        }
+
       seed = undefined
       description = [{
           scale: .01
           multiplier: 10
+          offset: randomoffset()
         }, {
           scale: .03
           multiplier: 4
+          offset: randomoffset()
         }, {
           scale: .05
           multiplier: 3
+          offset: randomoffset()
         }, {
           scale: .09
           multiplier: .9
+          offset: randomoffset()
         }, {
           scale: .12
           multiplier: .7
+          offset: randomoffset()
         }, {
           scale: .2
           multiplier: .6
+          offset: randomoffset()
         }, {
           scale: .35
           multiplier: .5
@@ -76,7 +88,7 @@ lib.load(
       # }]
       noise = null
       initGenerator = ->
-        Math.seedrandom(seed)
+        # Math.seedrandom(seed)
         noise = new NoiseGenerator(
           new SimplexNoise(Math.random), description)
 
@@ -236,10 +248,11 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
 
   preinit: ->
-    @chunksize = 8 #* 16
+    @chunksize = 64
     @targetDensity = 32
     @meshes = new Grid(2, [Infinity, Infinity])
     console.log("PREINIT now")
+    @loading = 0
 
   postinit: ->
     @person = new FirstPerson(container, @camera)
@@ -250,6 +263,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @camera.position.y = 20
 
   generateChunk: (cx, cy) ->
+    return if @loading > 10
     yp = @camera.position.y
     chunkcenterx = cx * @chunksize + @chunksize / 2
     chunkcentery = cy * @chunksize + @chunksize / 2
@@ -257,12 +271,11 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         chunkcenterx, 50, chunkcentery)
 
     levels = [
-      [50, 8]
-      [90, 4]
-      [150, 2]
-      [200, 1]
-      [250, .5]
-      [300, .25]
+      [50, 128]
+      [100, 64]
+      [200, 32]
+      [400, 16]
+      [800, 8]
     ]
 
     targetDensity = null
@@ -274,7 +287,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
 
     # console.log(targetDensity)
-    density = 2
+    density = 1
     exists = @meshes.exists(cx, cy)
     if exists
       oldmesh = @meshes.get(cx, cy)
@@ -295,8 +308,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       [od, om, os] = oldmesh
       return if od >= density
       @meshes.set([od, om, true], cx, cy)
+    @loading++
     console.log("requesting #{cx}, #{cy} @#{density}")
     terrainWorker.call('geometry', [cx * @chunksize, cy * @chunksize], density, @chunksize, (rawgeo) =>
+      @loading--
       t = now()
       console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
       geo = serializer.deserialize('Geometry', rawgeo)
@@ -348,7 +363,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
 
     cx = Math.floor(@camera.position.x / @chunksize)
     cy = Math.floor(@camera.position.z / @chunksize)
-    for x in [-20..20]
-      for y in [-20..20]
+    for x in [-50..50]
+      for y in [-50..50]
         @generateChunk(cx + x, cy + y)
     @person.update(delta)
