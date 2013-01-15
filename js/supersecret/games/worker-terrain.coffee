@@ -124,6 +124,8 @@ comm = new WorkerComm(self, {
     initGenerator()
   setNoise: (newDescription) ->
     description = newDescription
+  maxHeight: ->
+    return noise.getMaxValue()
 
     initGenerator()
   test: (a, b) ->
@@ -274,6 +276,15 @@ distance = (x1, y1, z1, x2, y2, z2) ->
   zd = z2 - z1
   return Math.sqrt(zd*zd + yd*yd + xd*xd)
 
+distance = (p1, p2) ->
+  if p1.length != p2.length
+    throw 'Error: both vectors must match in size.'
+  s = 0
+  for i in [0..p1.length-1]
+    diff = p2[i] - p1[i]
+    s += diff*diff
+  return Math.sqrt(s)
+
 spiral = (cx, cy, distance, f) ->
   x = y = 0
   dx = 0
@@ -292,9 +303,31 @@ class QuadTreeNode
     @offset =
       x: x
       y: y
-    @hasChildren = false
-    @children = [[undefined, undefined], [undefined, undefined]]
+    @removeChildren()
     @data = undefined
+
+  childrenLoaded: ->
+    return true if not @hasChildren
+    for dx in [0,1]
+      for dy in [0,1]
+        if not @children[dx][dy].loaded
+          return false
+    return true
+
+  removeChildren: ->
+    @forChild (child) ->
+      child.parent = undefined
+    @children = [[undefined, undefined], [undefined, undefined]]
+    @hasChildren = false
+
+  forEveryChild: (f) ->
+    queue = new Queue()
+    queue.push this
+    while queue.length > 0
+      node = queue.pop()
+      node.forChild (child) ->
+        queue.push child
+      f(node)
 
   forChild: (f) ->
     return if not @hasChildren
@@ -333,7 +366,35 @@ class QuadTreeGeometry
       if e.keyCode == 66
         @shouldBreakpoint = true
     )
+    @quadsEnabled = false
+    @quads = []
+    @stopped = false
     @updater = new Updater(1000)
+    @maxheight = null
+
+  enableQuadTree: ->
+    return if @quadsEnabled
+    console.log('Enabling quads')
+    @quadsEnabled = true
+    for quad in @quads
+      @scene.add quad
+  disableQuadTree: ->
+    return if not @quadsEnabled
+    console.log('Disabling quads')
+    @quadsEnabled = false
+    for quad in @quads
+      @scene.remove quad
+
+  cleanup: ->
+    @stopped = true
+    queue = new Queue()
+    queue.push @tree
+    while queue.length > 0
+      node = queue.pop()
+      @scene.remove node.mesh if node.mesh
+      @scene.remove node.quad if node.quad
+      node.forChild (child, x, y) ->
+        queue.push child
 
   growTree: (position) ->
     return if @loading > 10
@@ -342,104 +403,179 @@ class QuadTreeGeometry
     @shouldBreakpoint = false
     # console.log('GROWING ', @loading)
 
+    shouldDivideNode = (node) =>
+      d = distance([node.offset.x + node.size / 2, @maxheight / 2, node.offset.y + node.size / 2],
+          [position.x, position.y, position.z])
+      s = Math.sqrt(node.size * node.size + node.size * node.size)
+      return d < s
+
+    shouldUndivideNode = (node) =>
+      d = distance([node.offset.x + node.size / 2, @maxheight / 2, node.offset.y + node.size / 2],
+          [position.x, position.y, position.z])
+      s = Math.sqrt(node.size * node.size + node.size * node.size)
+      return d > s * s
+
+    requestGeometry = (node, callback) =>
+      @loading++
+      console.log('Requesting mesh for ' + node.offset.x + ', ' + node.offset.y + 'x' + node.size)
+      terrainWorker.i.geometry([node.offset.x, node.offset.y], 16, node.size, (geometry) =>
+        @loading--
+        return if @stopped
+        t = now()
+        # console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
+        console.log('Got mesh for ' + node.offset.x + ', ' + node.offset.y + 'x' + node.size)
+        geometry = serializer.deserialize('RawGeometry', geometry)
+        console.log('Geometry deserialized in ' + (now() - t) + 'ms')
+        mesh = new THREE.Mesh(geometry,
+          # new THREE.MeshNormalMaterial()
+          new THREE.MeshLambertMaterial({
+            vertexColors: THREE.VertexColors
+          })
+        )
+        node.mesh = mesh
+        mesh.position.x = @offset.x + node.offset.x
+        mesh.position.z = @offset.y + node.offset.y
+        callback(mesh)
+      )
+
+    createQuad = (node) =>
+      yv = @maxHeight
+      gg = new THREE.Geometry()
+      gg.vertices.push new THREE.Vector3(0, yv, 0)
+      gg.vertices.push new THREE.Vector3(node.size, yv, 0)
+      gg.vertices.push new THREE.Vector3(node.size, yv, node.size)
+      gg.vertices.push new THREE.Vector3(0, yv, node.size)
+      gg.vertices.push new THREE.Vector3(0, yv, 0)
+      mm = new THREE.Line(gg, new THREE.LineBasicMaterial({color: 0xff0000, linewidth:4}))
+      mm.position.x = @offset.x + node.offset.x
+      mm.position.z = @offset.y + node.offset.y
+      return mm
+
+
     queue = new Queue()
     queue.push(@tree)
     leaves = []
+    unloadNodes = []
     while queue.length > 0
       node = queue.pop()
-      continue if node.data is null
-      if not node.hasChildren
+      continue if node.loading or node.parent is undefined
+
+      doDivide = shouldDivideNode(node)
+      if node.quad
+        if doDivide
+          node.quad.material.color = new THREE.Color(0x00ff00)
+          node.quad.material.linewidth = 4
+        else
+          node.quad.material.color = new THREE.Color(0xff0000)
+          node.quad.material.linewidth = 2
+          node.quad.materialNeedsUpdate = true
+
+
+      if node.hasChildren and node.parent and false and not doDivideChildren
+        # continue if node.mesh
+        # debugger
+        console.log('============= REMOVING', node.offset.x, node.offset.y, node.size)
+        node.forEveryChild (child) =>
+          child.loading = false
+          @scene.remove child.mesh if child.mesh
+          @scene.remove child.quad if child.quad
+        node.removeChildren()
+        @scene.remove node.mesh if node.mesh
+        @scene.remove node.quad if node.quad
+        node.loading = false
         leaves.push node
-      else
+        # leaves.push node
+        # @scene.remove node.mesh if node.mesh
+        # @scene.remove node.quad if node.quad
+      else if node.hasChildren and doDivide
         node.forChild (child, x, y) ->
+          return if child.loading or child.parent is undefined #or not shouldDivideNode(child)
           if child.hasChildren
             queue.push(child)
           else
             leaves.push(child)
+      else if not node.hasChildren and doDivide
+        leaves.push node
+
+    leaves.sort (a, b) ->
+      anx = a.offset.x + a.size / 2
+      any = a.offset.y + a.size / 2
+      bnx = b.offset.x + b.size / 2
+      bny = b.offset.y + b.size / 2
+      return distance([position.x, position.z], [anx, any]) - distance([position.x, position.z], [bnx, bny])
+
+    if false
+      for parent in unloadNodes
+        continue if parent.parent is undefined
+        unloadQueue = new Queue()
+        unloadQueue.push parent
+        while unloadQueue.length > 0
+          node = unloadQueue.pop()
+          @scene.remove node.mesh if node.mesh
+          @scene.remove node.quad if node.quad
+          node.quad = undefined
+          node.mesh = undefined
+          node.loading = false
+          node.forChild (child) ->
+            unloadQueue.push child
+          node.removeChildren()
+
+        parent.loading = true
+        console.log(parent.hasChildren)
+        requestGeometry(parent, (mesh) =>
+          # return if parent.parent and parent.parent.loading
+          return if not parent.loading
+
+          parent.loading = false
+          parent.mesh = mesh
+
+          yv = @maxHeight
+          # simpleFaces = new FaceManager(2)
+          # simpleFaces.addFace4([0, yv, 0], [child.size, yv, 0], [child.size, yv, child.size], [0, yv, child.size], {
+          #   vertexColors: [new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()]
+          #   })
+          if not parent.quad
+            mm = createQuad(parent)
+            parent.quad = mm
+          if @quadsEnabled
+            console.log('Adding quad')
+            @scene.add mm
+          @scene.add mesh
+        )
 
     for leaf in leaves
-      return if @loading > 10
-      d = distance(leaf.offset.x + leaf.size / 2, 64, leaf.offset.y + leaf.size / 2,
-          position.x, position.y, position.z)
+      continue if @loading > 10 or leaf.loading or leaf.parent is undefined
+      continue if leaf.size < @size / 1024
 
-      s = Math.sqrt(leaf.size * leaf.size + leaf.size * leaf.size)
-
-      levels = [
-        [s*16, leaf.size / 2]
-        # [s / 256, @size / 1024]
-        # [s / 128, @size / 512]
-        # [s / 64, @size / 256]
-        # [s / 32, @size / 128]
-        # [s / 16, @size / 64]
-        # [s / 8, @size / 32]
-        # [s / 4, @size / 16]
-        # [s / 2, @size / 8]
-        # [@size * 5 / 64, @size / 64]
-        # [@size * 5 / 32, @size / 32]
-        # [@size * 5 / 16, @size / 16]
-        # [@size * 5 / 8, @size / 8]
-        # [@size * 5 / 4, @size / 4]
-        # [@size * 5 / 2, @size / 2]
-        # [@size * 5, @size],
-      ]
-
-      # targetDensity = null
-      # for [level, density] in levels
-      #   if d - s < level
-      #     targetDensity = density
-      #     break
-      # if leaf.parent
-      #   return if not targetDensity?
-      #   return if leaf.size <= targetDensity
-      continue if d > s * 3 or leaf.size < @size / 1024
-
-      console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} @#{d} s#{leaf.size}"
+      console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} s#{leaf.size}"
 
       meshes = []
       for dx in [0, 1]
         for dy in [0, 1]
           child = leaf.addChild(dx, dy)
-          child.data = null
-          @loading++
+          continue if child.loading or leaf.loading or leaf.parent is undefined
+          child.loading = true
           do (meshes, leaf, child) =>
-            console.log('Requesting mesh for ' + child.offset.x + ', ' + child.offset.y + 'x' + child.size)
-            terrainWorker.i.geometry([child.offset.x, child.offset.y], 16, child.size, (geometry) =>
-              @loading--
-              t = now()
-              # console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
-              console.log('Got mesh for ' + child.offset.x + ', ' + child.offset.y + 'x' + child.size)
-              geometry = serializer.deserialize('RawGeometry', geometry)
-              console.log('Geometry deserialized in ' + (now() - t) + 'ms')
-              mesh = new THREE.Mesh(geometry,
-                # new THREE.MeshNormalMaterial()
-                new THREE.MeshLambertMaterial({
-                  vertexColors: THREE.VertexColors
-                })
-              )
-              child.data = mesh
-              mesh.position.x = @offset.x + child.offset.x
-              mesh.position.z = @offset.y + child.offset.y
-
-              yv = 20
+            requestGeometry(child, (mesh) =>
+              return if child.parent is undefined
+              return if child.parent and child.parent.loading
+              return if not child.loading
+              child.loading = false
               # simpleFaces = new FaceManager(2)
               # simpleFaces.addFace4([0, yv, 0], [child.size, yv, 0], [child.size, yv, child.size], [0, yv, child.size], {
               #   vertexColors: [new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()]
               #   })
-              gg = new THREE.Geometry()
-              gg.vertices.push new THREE.Vector3(0, yv, 0)
-              gg.vertices.push new THREE.Vector3(child.size, yv, 0)
-              gg.vertices.push new THREE.Vector3(child.size, yv, child.size)
-              gg.vertices.push new THREE.Vector3(0, yv, child.size)
-              mm = new THREE.Line(gg, new THREE.LineBasicMaterial({color: 0xff0000}))
-              mm.position.x = mesh.position.x
-              mm.position.z = mesh.position.z
-              @scene.add mm
+              mm = createQuad(child)
+              child.quad = mm
+              if @quadsEnabled
+                console.log('Adding quad')
+                @scene.add mm
 
               meshes.push mesh
               if meshes.length is 4
-                if leaf.data
-                  @scene.remove leaf.data
-                  leaf.data = undefined
+                if leaf.mesh
+                  @scene.remove leaf.mesh
+                  leaf.mesh = undefined
                 for mesh in meshes
                   @scene.add mesh
             )
@@ -448,11 +584,10 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
 
   preinit: ->
-    @chunksize = 2048
+    @chunksize = 4096
     @targetDensity = 32
     @meshes = new Grid(2, [Infinity, Infinity])
     console.log("PREINIT now")
-    @loading = 0
 
   postinit: ->
     @camera.position.y = 500
@@ -462,7 +597,18 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @geometree = new QuadTreeGeometry(@scene, @chunksize)
     @setTransform('speed', parseFloat)
     @watch('speed', (v) =>
-      @person.speed = v
+      @person.speed = v or 10
+    )
+    @setTransform('quads', (v) ->
+      if v == 'true' or v == '1' or v == 'y' or v == 'yes' or v == 't'
+        return true
+      return false
+      )
+    @watch('quads', (v) =>
+      if v
+        @geometree.enableQuadTree()
+      else
+        @geometree.disableQuadTree()
     )
     @watch('noise', (v) =>
       return if not v
@@ -493,17 +639,24 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       if currentNumber?
         currentLayer.multiplier = parseFloat(currentNumber)
       layers.push currentLayer
+      @geometree.cleanup()
+      enableQuadTree = @geometree.quadsEnabled
+      @geometree = new QuadTreeGeometry(@scene, @chunksize)
+      @geometree.quadsEnabled = enableQuadTree
       terrainWorker.call('setNoise', layers, ->)
+      terrainWorker.i.maxHeight (v) =>
+        @geometree.maxHeight = v
 
     )
 
   generateChunk: (cx, cy) ->
+    throw "NEVER AGAIN"
     return false if @loading > 10
     yp = @camera.position.y
     chunkcenterx = cx * @chunksize + @chunksize / 2
     chunkcentery = cy * @chunksize + @chunksize / 2
-    d = distance(@camera.position.x, @camera.position.y, @camera.position.z,
-        chunkcenterx, 10, chunkcentery)
+    d = distance([@camera.position.x, @camera.position.y, @camera.position.z],
+        [chunkcenterx, 10, chunkcentery])
 
     levels = [
       [20, 1024]
@@ -578,6 +731,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   initGeometry: ->
     @scene.add new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8))
     terrainWorker.call('init', ->)
+    terrainWorker.i.maxHeight (v) =>
+      @geometree.maxheight = v
+      console.log('Max height is ' + v)
     #cubeGeometry = polygons.cube(1)
     #cubeGeometry.computeFaceNormals()
     #@scene.add new THREE.Mesh(
