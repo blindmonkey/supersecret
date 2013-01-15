@@ -183,7 +183,9 @@ lib.load(
   'firstperson'
   'grid'
   'polygons'
+  'queue'
   'now'
+  'updater'
   'worker-comm'
   'webworkers'
   ->
@@ -283,11 +285,151 @@ spiral = (cx, cy, distance, f) ->
     x += dx
     y += dy
 
+class QuadTreeNode
+  constructor: (parent, size, x, y) ->
+    @parent = parent
+    @size = size
+    @offset =
+      x: x
+      y: y
+    @hasChildren = false
+    @children = [[undefined, undefined], [undefined, undefined]]
+    @data = undefined
+
+  forChild: (f) ->
+    return if not @hasChildren
+    for x in [0, 1]
+      for y in [0, 1]
+        if child = @children[x][y]
+          f(child, x, y)
+    return
+
+  addChild: (x, y) ->
+    if x < 0 or x > 1 or y < 0 or y > 1
+      throw "Invalid child coordinate"
+    @hasChildren = true
+    px = @offset.x + @size / 2 * x
+    py = @offset.y + @size / 2 * y
+    return @children[x][y] = new QuadTreeNode(this, @size / 2, px, py)
+
+  getChild: (x, y) ->
+    return @children[x][y]
+
+
+
+class QuadTreeGeometry
+  constructor: (scene, size) ->
+    @scene = scene
+    @size = Math.pow(2, Math.ceil(Math.log(size) / Math.log(2)))
+    @tree = new QuadTreeNode(null, @size, 0, 0)
+    @growing = false
+    @loading = 0
+    @offset =
+      x: 0
+      y: 0
+    @onmesh = null
+    @shouldBreakpoint = false
+    $(document).keydown((e) =>
+      if e.keyCode == 66
+        @shouldBreakpoint = true
+    )
+    @updater = new Updater(1000)
+
+  growTree: (position) ->
+    return if @loading > 10
+    @updater.update('trees', 'Loading ' + @loading)
+    DEBUG.breakpoint(@shouldBreakpoint)
+    @shouldBreakpoint = false
+    # console.log('GROWING ', @loading)
+
+    queue = new Queue()
+    queue.push(@tree)
+    leaves = []
+    while queue.length > 0
+      node = queue.pop()
+      continue if node.data is null
+      if not node.hasChildren
+        leaves.push node
+      else
+        node.forChild (child, x, y) ->
+          if child.hasChildren
+            queue.push(child)
+          else
+            leaves.push(child)
+
+    levels = [
+      [@size / 512, @size / 2048]
+      [@size / 256, @size / 1024]
+      [@size / 128, @size / 512]
+      [@size / 64, @size / 256]
+      [@size / 32, @size / 128]
+      [@size / 16, @size / 64]
+      [@size / 8, @size / 32]
+      [@size / 4, @size / 16]
+      [@size / 2, @size / 8]
+      # [@size * 5 / 64, @size / 64]
+      # [@size * 5 / 32, @size / 32]
+      # [@size * 5 / 16, @size / 16]
+      # [@size * 5 / 8, @size / 8]
+      # [@size * 5 / 4, @size / 4]
+      # [@size * 5 / 2, @size / 2]
+      # [@size * 5, @size],
+    ]
+
+    for leaf in leaves
+      return if @loading > 10
+      d = distance(leaf.offset.x + leaf.size / 2, 64, leaf.offset.y + leaf.size / 2,
+          position.x, position.y, position.z)
+
+      targetDensity = null
+      for [level, density] in levels
+        if d - leaf.size < level
+          targetDensity = density
+          break
+      if leaf.parent
+        return if not targetDensity?
+        return if leaf.size <= targetDensity
+
+      console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} @#{d} s#{leaf.size} #{targetDensity}"
+
+      meshes = []
+      for dx in [0, 1]
+        for dy in [0, 1]
+          child = leaf.addChild(dx, dy)
+          child.data = null
+          @loading++
+          do (meshes, leaf, child) =>
+            console.log('Requesting mesh for ' + child.offset.x + ', ' + child.offset.y + 'x' + child.size)
+            terrainWorker.i.geometry([child.offset.x, child.offset.y], 8, child.size, (geometry) =>
+              @loading--
+              t = now()
+              # console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
+              console.log('Got mesh for ' + child.offset.x + ', ' + child.offset.y + 'x' + child.size)
+              geometry = serializer.deserialize('RawGeometry', geometry)
+              console.log('Geometry deserialized in ' + (now() - t) + 'ms')
+              mesh = new THREE.Mesh(geometry,
+                # new THREE.MeshNormalMaterial()
+                new THREE.MeshLambertMaterial({
+                  vertexColors: THREE.VertexColors
+                })
+              )
+              child.data = mesh
+              mesh.position.x = @offset.x + child.offset.x
+              mesh.position.z = @offset.y + child.offset.y
+              meshes.push mesh
+              if meshes.length is 4
+                if leaf.data
+                  @scene.remove leaf.data
+                  leaf.data = undefined
+                for mesh in meshes
+                  @scene.add mesh
+            )
+
 supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
 
   preinit: ->
-    @chunksize = 64
+    @chunksize = 2048
     @targetDensity = 32
     @meshes = new Grid(2, [Infinity, Infinity])
     console.log("PREINIT now")
@@ -298,6 +440,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     @person = new FirstPerson(container, @camera)
     @person.pitch = Math.PI / 4
     @person.updateCamera()
+    @geometree = new QuadTreeGeometry(@scene, @chunksize)
     @setTransform('speed', parseFloat)
     @watch('speed', (v) =>
       @person.speed = v
@@ -390,7 +533,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @meshes.set([od, om, true], cx, cy)
     @loading++
     console.log("requesting #{cx}, #{cy} @#{density}")
-    terrainWorker.call('geometry', [cx * @chunksize, cy * @chunksize], density, @chunksize, (rawgeo) =>
+    terrainWorker.i.geometry([cx * @chunksize, cy * @chunksize], density, @chunksize, (rawgeo) =>
       @loading--
       t = now()
       console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
@@ -441,9 +584,16 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @lp = @camera.position.y
       console.log(@camera.position.y)
 
-    cx = Math.floor(@camera.position.x / @chunksize)
-    cy = Math.floor(@camera.position.z / @chunksize)
-    spiral(cx, cy, 50*50, (x, y) =>
-      @generateChunk(x, y)
-    )
+    @geometree.growTree({
+      x: @camera.position.x - @geometree.offset.x
+      y: @camera.position.y
+      z: @camera.position.z - @geometree.offset.y
+    })
+
+    # cx = Math.floor(@camera.position.x / @chunksize)
+    # cy = Math.floor(@camera.position.z / @chunksize)
+    # n = 30
+    # spiral(cx, cy, 30, (x, y) =>
+    #   @generateChunk(x, y)
+    # )
     @person.update(delta)
