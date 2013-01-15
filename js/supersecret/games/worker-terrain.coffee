@@ -357,40 +357,43 @@ class QuadTreeGeometry
           else
             leaves.push(child)
 
-    levels = [
-      [@size / 512, @size / 2048]
-      [@size / 256, @size / 1024]
-      [@size / 128, @size / 512]
-      [@size / 64, @size / 256]
-      [@size / 32, @size / 128]
-      [@size / 16, @size / 64]
-      [@size / 8, @size / 32]
-      [@size / 4, @size / 16]
-      [@size / 2, @size / 8]
-      # [@size * 5 / 64, @size / 64]
-      # [@size * 5 / 32, @size / 32]
-      # [@size * 5 / 16, @size / 16]
-      # [@size * 5 / 8, @size / 8]
-      # [@size * 5 / 4, @size / 4]
-      # [@size * 5 / 2, @size / 2]
-      # [@size * 5, @size],
-    ]
-
     for leaf in leaves
       return if @loading > 10
       d = distance(leaf.offset.x + leaf.size / 2, 64, leaf.offset.y + leaf.size / 2,
           position.x, position.y, position.z)
 
-      targetDensity = null
-      for [level, density] in levels
-        if d - leaf.size < level
-          targetDensity = density
-          break
-      if leaf.parent
-        return if not targetDensity?
-        return if leaf.size <= targetDensity
+      s = Math.sqrt(leaf.size * leaf.size + leaf.size * leaf.size)
 
-      console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} @#{d} s#{leaf.size} #{targetDensity}"
+      levels = [
+        [s*16, leaf.size / 2]
+        # [s / 256, @size / 1024]
+        # [s / 128, @size / 512]
+        # [s / 64, @size / 256]
+        # [s / 32, @size / 128]
+        # [s / 16, @size / 64]
+        # [s / 8, @size / 32]
+        # [s / 4, @size / 16]
+        # [s / 2, @size / 8]
+        # [@size * 5 / 64, @size / 64]
+        # [@size * 5 / 32, @size / 32]
+        # [@size * 5 / 16, @size / 16]
+        # [@size * 5 / 8, @size / 8]
+        # [@size * 5 / 4, @size / 4]
+        # [@size * 5 / 2, @size / 2]
+        # [@size * 5, @size],
+      ]
+
+      # targetDensity = null
+      # for [level, density] in levels
+      #   if d - s < level
+      #     targetDensity = density
+      #     break
+      # if leaf.parent
+      #   return if not targetDensity?
+      #   return if leaf.size <= targetDensity
+      continue if d > s * 3 or leaf.size < @size / 1024
+
+      console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} @#{d} s#{leaf.size}"
 
       meshes = []
       for dx in [0, 1]
@@ -400,7 +403,7 @@ class QuadTreeGeometry
           @loading++
           do (meshes, leaf, child) =>
             console.log('Requesting mesh for ' + child.offset.x + ', ' + child.offset.y + 'x' + child.size)
-            terrainWorker.i.geometry([child.offset.x, child.offset.y], 8, child.size, (geometry) =>
+            terrainWorker.i.geometry([child.offset.x, child.offset.y], 16, child.size, (geometry) =>
               @loading--
               t = now()
               # console.log("got mesh... for chunk #{cx}, #{cy} @#{density}")
@@ -416,6 +419,22 @@ class QuadTreeGeometry
               child.data = mesh
               mesh.position.x = @offset.x + child.offset.x
               mesh.position.z = @offset.y + child.offset.y
+
+              yv = 20
+              # simpleFaces = new FaceManager(2)
+              # simpleFaces.addFace4([0, yv, 0], [child.size, yv, 0], [child.size, yv, child.size], [0, yv, child.size], {
+              #   vertexColors: [new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()]
+              #   })
+              gg = new THREE.Geometry()
+              gg.vertices.push new THREE.Vector3(0, yv, 0)
+              gg.vertices.push new THREE.Vector3(child.size, yv, 0)
+              gg.vertices.push new THREE.Vector3(child.size, yv, child.size)
+              gg.vertices.push new THREE.Vector3(0, yv, child.size)
+              mm = new THREE.Line(gg, new THREE.LineBasicMaterial({color: 0xff0000}))
+              mm.position.x = mesh.position.x
+              mm.position.z = mesh.position.z
+              @scene.add mm
+
               meshes.push mesh
               if meshes.length is 4
                 if leaf.data
@@ -484,7 +503,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     chunkcenterx = cx * @chunksize + @chunksize / 2
     chunkcentery = cy * @chunksize + @chunksize / 2
     d = distance(@camera.position.x, @camera.position.y, @camera.position.z,
-        chunkcenterx, 50, chunkcentery)
+        chunkcenterx, 10, chunkcentery)
 
     levels = [
       [20, 1024]
