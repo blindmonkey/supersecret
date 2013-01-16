@@ -327,7 +327,8 @@ class QuadTreeNode
       node = queue.pop()
       node.forChild (child) ->
         queue.push child
-      f(node)
+      if node isnt this
+        return if f(node) is false
 
   forChild: (f) ->
     return if not @hasChildren
@@ -461,40 +462,63 @@ class QuadTreeGeometry
       continue if node.loading or node.parent is undefined
 
       doDivide = shouldDivideNode(node)
-      if node.quad
-        if doDivide
-          node.quad.material.color = new THREE.Color(0x00ff00)
-          node.quad.material.linewidth = 4
-        else
-          node.quad.material.color = new THREE.Color(0xff0000)
-          node.quad.material.linewidth = 2
-          node.quad.materialNeedsUpdate = true
-
-
-      if node.hasChildren and node.parent and false and not doDivideChildren
-        # continue if node.mesh
-        # debugger
-        console.log('============= REMOVING', node.offset.x, node.offset.y, node.size)
+      # if node.quad
+      #   if doDivide
+      #     node.quad.material.color = new THREE.Color(0x00ff00)
+      #     node.quad.material.linewidth = 4
+      #   else
+      #     node.quad.material.color = new THREE.Color(0xff0000)
+      #     node.quad.material.linewidth = 2
+      #     node.quad.materialNeedsUpdate = true
+      divideAnyChildren = {v:false}
+      if node.hasChildren
         node.forEveryChild (child) =>
-          child.loading = false
-          @scene.remove child.mesh if child.mesh
-          @scene.remove child.quad if child.quad
-        node.removeChildren()
-        @scene.remove node.mesh if node.mesh
-        @scene.remove node.quad if node.quad
-        node.loading = false
-        leaves.push node
+          if child.hasChildren or shouldDivideNode(child) or child.loading
+            divideAnyChildren.v = true
+            return false
+      # else
+      #   divideAnyChildren.v = true
+      divideAnyChildren = divideAnyChildren.v
+
+      if node.hasChildren and node.parent and not doDivide and not divideAnyChildren
+        # node.quad and node.quad.material.color = new THREE.Color(0xffffff)
+        # continue
+        console.log('============= REMOVING', node.offset.x, node.offset.y, node.size)
+        node.loading = true
+        do (node) =>
+          requestGeometry(node, (mesh) =>
+            if node.parent is undefined
+              console.log('Geometry ignored because of missing parent')
+              return
+            if node.parent and node.parent.loading
+              console.log('Geometry ignored because parent is loading')
+              return
+            if not node.loading
+              console.log('Geometry ignored because node is not loading')
+            node.loading = false
+            node.forEveryChild (child) =>
+              child.loading = false
+              @scene.remove child.mesh if child.mesh
+              @scene.remove child.quad if child.quad
+              # child.removeChildren()
+            node.removeChildren()
+            @scene.remove node.mesh if node.mesh
+            # @scene.remove node.quad if node.quad
+            node.mesh = mesh
+            mesh.position.x
+            @scene.add mesh
+          )
         # leaves.push node
         # @scene.remove node.mesh if node.mesh
         # @scene.remove node.quad if node.quad
-      else if node.hasChildren and doDivide
+      else if node.hasChildren #and doDivide
         node.forChild (child, x, y) ->
           return if child.loading or child.parent is undefined #or not shouldDivideNode(child)
           if child.hasChildren
             queue.push(child)
           else
             leaves.push(child)
-      else if not node.hasChildren and doDivide
+      else if not node.hasChildren and doDivide and (not node.parent or shouldDivideNode(node.parent))
         leaves.push node
 
     leaves.sort (a, b) ->
@@ -546,6 +570,7 @@ class QuadTreeGeometry
     for leaf in leaves
       continue if @loading > 10 or leaf.loading or leaf.parent is undefined
       continue if leaf.size < @size / 1024
+      continue if not shouldDivideNode(leaf) and not leaf.force
 
       console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} s#{leaf.size}"
 
@@ -571,12 +596,14 @@ class QuadTreeGeometry
                 console.log('Adding quad')
                 @scene.add mm
 
-              meshes.push mesh
+              meshes.push [child, mesh]
               if meshes.length is 4
                 if leaf.mesh
                   @scene.remove leaf.mesh
                   leaf.mesh = undefined
-                for mesh in meshes
+                for [node, mesh] in meshes
+                  @scene.remove node.mesh if node.mesh
+                  node.mesh = mesh
                   @scene.add mesh
             )
 
