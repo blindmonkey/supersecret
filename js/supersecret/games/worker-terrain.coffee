@@ -69,7 +69,15 @@ initGenerator = ->
   console.log('Reinitializing noise with ', description)
   noise = new NoiseGenerator(
     new SimplexNoise(Math.random), description)
-  getNoise = cached(noise.noise2D.bind(noise))
+  noise2 = new NoiseGenerator(
+    new SimplexNoise(Math.random), description)
+  noise3 = new SimplexNoise(Math.random)
+  getNoise = cached((x, y) ->
+    n1 = noise.noise2D(x, y)
+    n2 = noise2.noise2D(x, y)
+    n3 = (noise3.noise2D(x, y) + 1) / 2
+    return (n2 - n1) * n3 + n1
+  )
   console.log('Noise initialized')
 
 generateGeometry = (offset, density, size) ->
@@ -355,12 +363,13 @@ class QuadTreeNode
     return @children[x][y]
 
 
+divideThreshold = 2
 shouldDivideNode = (node, position, maxheight=0) =>
   # console.log position
   d = distance([node.offset.x + node.size / 2, maxheight / 2, node.offset.y + node.size / 2],
       [position.x, position.y, position.z])
   s = Math.sqrt(node.size * node.size + node.size * node.size)
-  return d < s
+  return d < s * divideThreshold
 
 # class GeometryGenerator
 #   @requestGeometry: (scene, node, callback) ->
@@ -369,6 +378,7 @@ shouldDivideNode = (node, position, maxheight=0) =>
 
 class QuadTreeGeometry
   @quadsEnabled: false
+  @density: 4
   constructor: (scene, size) ->
     @scene = scene
     @size = Math.pow(2, Math.ceil(Math.log(size) / Math.log(2)))
@@ -436,7 +446,7 @@ class QuadTreeGeometry
     requestGeometry = (node, callback) =>
       @loading++
       console.log('Requesting mesh for ' + node.offset.x + ', ' + node.offset.y + 'x' + node.size)
-      terrainWorker.i.geometry([node.offset.x + @offset.x, node.offset.y + @offset.y], 16, node.size, (geometry) =>
+      terrainWorker.i.geometry([node.offset.x + @offset.x, node.offset.y + @offset.y], QuadTreeGeometry.density, node.size, (geometry) =>
         @loading--
         return if @stopped
         t = now()
@@ -530,7 +540,7 @@ class QuadTreeGeometry
 
     for leaf in leaves
       continue if @loading > 10 or leaf.loading or leaf.parent is undefined
-      continue if leaf.size < @size / 1024
+      continue if leaf.size < @size / 4096
       continue if not shouldDivideNode(leaf, position) and not leaf.force
 
       console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} s#{leaf.size}"
@@ -625,6 +635,12 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       else
         QuadTreeGeometry.disableQuadTree()
     )
+    @setTransform 'divide', parseFloat
+    @watch 'divide', (v) =>
+      divideThreshold = v or 1
+    @setTransform 'density', parseInt
+    @watch 'density', (v) =>
+      QuadTreeGeometry.density = v or 4
     @watch('noise', (v) =>
       return if not v
       # The format is as follows:
