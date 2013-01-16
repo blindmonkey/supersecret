@@ -776,10 +776,21 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
     cy = Math.floor(@camera.position.z / @chunksize)
     for dx in [-1..1]
       for dy in [-1..1]
-        if not @chunks.exists(cx + dx, cy + dy)
+        ox = (cx + dx) * @chunksize
+        oy = (cy + dy) * @chunksize
+        # position = {
+        #   x: @camera.position.x - ox
+        #   y: @camera.position.y
+        #   z: @camera.position.z - oy
+        # }
+        # doDivide = shouldDivideNode({
+        #   offset: {x: ox, y: oy}
+        #   size: @chunksize
+        # }, position)
+        if not @chunks.exists(cx + dx, cy + dy) #and doDivide
           chunk = new QuadTreeGeometry(@scene, @chunksize)
-          chunk.offset.x = (cx + dx) * @chunksize
-          chunk.offset.y = (cy + dy) * @chunksize
+          chunk.offset.x = ox
+          chunk.offset.y = oy
           @chunks.set(chunk, cx + dx, cy + dy)
 
     @chunks.forEachChunk (coords...) =>
@@ -791,6 +802,9 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       }
       if shouldDivideNode(chunk.tree, position)
         chunk.growTree(position)
+      else
+        chunk.cleanup()
+        @chunks.remove(coords...)
 
     # @geometree.growTree({
     #   x: @camera.position.x - @geometree.offset.x

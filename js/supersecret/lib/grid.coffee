@@ -133,6 +133,13 @@ lib.load('events', ->
     keyExists: (key) ->
       return key of @grid
 
+    remove: (coords...) ->
+      if not @isInfinite and not @isValid(coords...)
+        throw 'Coordinate is out of bounds'
+      key = @getCellKey(coords...)
+      return if not @keyExists(key)
+      delete @grid[key]
+
     get: (coords...) ->
       if not @isInfinite and not @isValid(coords...)
         throw 'Coordinate is out of bounds'
