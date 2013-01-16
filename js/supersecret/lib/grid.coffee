@@ -30,6 +30,9 @@ lib.load('events', ->
         key += coord.toString()
       return key
 
+    getCoordsFromCellKey: (key) ->
+      return (parseInt(coord) for coord in key.split('/'))
+
     isValid: (coords...) ->
       for c in [0..coords.length - 1]
         coord = coords[c]
@@ -77,6 +80,11 @@ lib.load('events', ->
         coord = coords[c]
         @limits[c].min = coord if coord < @limits[c].min
         @limits[c].max = coord if coord > @limits[c].max
+
+    forEachChunk: (f) ->
+      for cid of @grid
+        coords = @getCoordsFromCellKey(cid)
+        return if f(coords...) is false
 
     forEach: (f) ->
       forEachForCoord = ((coordIndex, coordList) ->

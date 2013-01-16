@@ -63,11 +63,14 @@ description = [{
 #   multiplier: 128
 # }]
 noise = null
+getNoise = null
 initGenerator = ->
   # Math.seedrandom(seed)
   console.log('Reinitializing noise with ', description)
   noise = new NoiseGenerator(
     new SimplexNoise(Math.random), description)
+  getNoise = cached(noise.noise2D.bind(noise))
+  console.log('Noise initialized')
 
 generateGeometry = (offset, density, size) ->
   [ox, oy] = offset
@@ -139,7 +142,8 @@ comm = new WorkerComm(self, {
     # faces = new FaceManager(500)
     for y in [0..size-1]
       for x in [0..size-1]
-        n = noise.noise2D(x, y)
+        # n = noise.noise2D(x, y)
+        n = getNoise(x, y)
         geo.vertices.push new THREE.Vector3(x * tilesize, n, y * tilesize)
         if x > 0 and y > 0
           face1 = new THREE.Face3(getIndex(size, x, y), getIndex(size, x, y - 1), getIndex(size, x - 1, y))
@@ -171,6 +175,7 @@ terrainWorkerDeps = [
   'js/coffee-script.js'
   'js/worker-console.js'
   'js/simplex-noise.js'
+  'cache'
   'worker-comm'
   'facemanager'
   'noisegenerator'
@@ -350,8 +355,20 @@ class QuadTreeNode
     return @children[x][y]
 
 
+shouldDivideNode = (node, position, maxheight=0) =>
+  # console.log position
+  d = distance([node.offset.x + node.size / 2, maxheight / 2, node.offset.y + node.size / 2],
+      [position.x, position.y, position.z])
+  s = Math.sqrt(node.size * node.size + node.size * node.size)
+  return d < s
+
+# class GeometryGenerator
+#   @requestGeometry: (scene, node, callback) ->
+
+
 
 class QuadTreeGeometry
+  @quadsEnabled: false
   constructor: (scene, size) ->
     @scene = scene
     @size = Math.pow(2, Math.ceil(Math.log(size) / Math.log(2)))
@@ -367,24 +384,30 @@ class QuadTreeGeometry
       if e.keyCode == 66
         @shouldBreakpoint = true
     )
-    @quadsEnabled = false
     @quads = []
     @stopped = false
     @updater = new Updater(1000)
     @maxheight = null
 
-  enableQuadTree: ->
-    return if @quadsEnabled
+  @enableQuadTree: ->
+    return if QuadTreeGeometry.quadsEnabled
     console.log('Enabling quads')
-    @quadsEnabled = true
-    for quad in @quads
-      @scene.add quad
-  disableQuadTree: ->
-    return if not @quadsEnabled
+    QuadTreeGeometry.quadsEnabled = true
+  @disableQuadTree: ->
+    return if not QuadTreeGeometry.quadsEnabled
     console.log('Disabling quads')
-    @quadsEnabled = false
+    QuadTreeGeometry.quadsEnabled = false
     for quad in @quads
       @scene.remove quad
+
+
+  updateQuads: ->
+    queue = new Queue()
+    queue.push @tree
+    while queue.length > 0
+      node = queue.pop()
+      if QuadTreeGeometry.showQuads
+        @scene.add node.quad if node.quad
 
   cleanup: ->
     @stopped = true
@@ -404,12 +427,6 @@ class QuadTreeGeometry
     @shouldBreakpoint = false
     # console.log('GROWING ', @loading)
 
-    shouldDivideNode = (node) =>
-      d = distance([node.offset.x + node.size / 2, @maxheight / 2, node.offset.y + node.size / 2],
-          [position.x, position.y, position.z])
-      s = Math.sqrt(node.size * node.size + node.size * node.size)
-      return d < s
-
     shouldUndivideNode = (node) =>
       d = distance([node.offset.x + node.size / 2, @maxheight / 2, node.offset.y + node.size / 2],
           [position.x, position.y, position.z])
@@ -419,7 +436,7 @@ class QuadTreeGeometry
     requestGeometry = (node, callback) =>
       @loading++
       console.log('Requesting mesh for ' + node.offset.x + ', ' + node.offset.y + 'x' + node.size)
-      terrainWorker.i.geometry([node.offset.x, node.offset.y], 16, node.size, (geometry) =>
+      terrainWorker.i.geometry([node.offset.x + @offset.x, node.offset.y + @offset.y], 16, node.size, (geometry) =>
         @loading--
         return if @stopped
         t = now()
@@ -438,6 +455,13 @@ class QuadTreeGeometry
         mesh.position.z = @offset.y + node.offset.y
         callback(mesh)
       )
+
+
+    # shouldDivideNode = (node) =>
+    #   d = distance([node.offset.x + node.size / 2, @maxheight / 2, node.offset.y + node.size / 2],
+    #       [position.x, position.y, position.z])
+    #   s = Math.sqrt(node.size * node.size + node.size * node.size)
+    #   return d < s
 
     createQuad = (node) =>
       yv = @maxHeight
@@ -461,7 +485,7 @@ class QuadTreeGeometry
       node = queue.pop()
       continue if node.loading or node.parent is undefined
 
-      doDivide = shouldDivideNode(node)
+      doDivide = shouldDivideNode(node, position)
       # if node.quad
       #   if doDivide
       #     node.quad.material.color = new THREE.Color(0x00ff00)
@@ -473,7 +497,7 @@ class QuadTreeGeometry
       divideAnyChildren = {v:false}
       if node.hasChildren
         node.forEveryChild (child) =>
-          if child.hasChildren or shouldDivideNode(child) or child.loading
+          if child.hasChildren or shouldDivideNode(child, position) or child.loading
             divideAnyChildren.v = true
             return false
       # else
@@ -483,31 +507,7 @@ class QuadTreeGeometry
       if node.hasChildren and node.parent and not doDivide and not divideAnyChildren
         # node.quad and node.quad.material.color = new THREE.Color(0xffffff)
         # continue
-        console.log('============= REMOVING', node.offset.x, node.offset.y, node.size)
-        node.loading = true
-        do (node) =>
-          requestGeometry(node, (mesh) =>
-            if node.parent is undefined
-              console.log('Geometry ignored because of missing parent')
-              return
-            if node.parent and node.parent.loading
-              console.log('Geometry ignored because parent is loading')
-              return
-            if not node.loading
-              console.log('Geometry ignored because node is not loading')
-            node.loading = false
-            node.forEveryChild (child) =>
-              child.loading = false
-              @scene.remove child.mesh if child.mesh
-              @scene.remove child.quad if child.quad
-              # child.removeChildren()
-            node.removeChildren()
-            @scene.remove node.mesh if node.mesh
-            # @scene.remove node.quad if node.quad
-            node.mesh = mesh
-            mesh.position.x
-            @scene.add mesh
-          )
+        unloadNodes.push node
         # leaves.push node
         # @scene.remove node.mesh if node.mesh
         # @scene.remove node.quad if node.quad
@@ -518,7 +518,7 @@ class QuadTreeGeometry
             queue.push(child)
           else
             leaves.push(child)
-      else if not node.hasChildren and doDivide and (not node.parent or shouldDivideNode(node.parent))
+      else if not node.hasChildren and doDivide and (not node.parent or shouldDivideNode(node.parent, position))
         leaves.push node
 
     leaves.sort (a, b) ->
@@ -528,49 +528,10 @@ class QuadTreeGeometry
       bny = b.offset.y + b.size / 2
       return distance([position.x, position.z], [anx, any]) - distance([position.x, position.z], [bnx, bny])
 
-    if false
-      for parent in unloadNodes
-        continue if parent.parent is undefined
-        unloadQueue = new Queue()
-        unloadQueue.push parent
-        while unloadQueue.length > 0
-          node = unloadQueue.pop()
-          @scene.remove node.mesh if node.mesh
-          @scene.remove node.quad if node.quad
-          node.quad = undefined
-          node.mesh = undefined
-          node.loading = false
-          node.forChild (child) ->
-            unloadQueue.push child
-          node.removeChildren()
-
-        parent.loading = true
-        console.log(parent.hasChildren)
-        requestGeometry(parent, (mesh) =>
-          # return if parent.parent and parent.parent.loading
-          return if not parent.loading
-
-          parent.loading = false
-          parent.mesh = mesh
-
-          yv = @maxHeight
-          # simpleFaces = new FaceManager(2)
-          # simpleFaces.addFace4([0, yv, 0], [child.size, yv, 0], [child.size, yv, child.size], [0, yv, child.size], {
-          #   vertexColors: [new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()]
-          #   })
-          if not parent.quad
-            mm = createQuad(parent)
-            parent.quad = mm
-          if @quadsEnabled
-            console.log('Adding quad')
-            @scene.add mm
-          @scene.add mesh
-        )
-
     for leaf in leaves
       continue if @loading > 10 or leaf.loading or leaf.parent is undefined
       continue if leaf.size < @size / 1024
-      continue if not shouldDivideNode(leaf) and not leaf.force
+      continue if not shouldDivideNode(leaf, position) and not leaf.force
 
       console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} s#{leaf.size}"
 
@@ -592,7 +553,7 @@ class QuadTreeGeometry
               #   })
               mm = createQuad(child)
               child.quad = mm
-              if @quadsEnabled
+              if QuadTreeGeometry.quadsEnabled
                 console.log('Adding quad')
                 @scene.add mm
 
@@ -606,6 +567,32 @@ class QuadTreeGeometry
                   node.mesh = mesh
                   @scene.add mesh
             )
+    for node in unloadNodes
+      console.log('============= REMOVING', node.offset.x, node.offset.y, node.size)
+      node.loading = true
+      do (node) =>
+        requestGeometry(node, (mesh) =>
+          if node.parent is undefined
+            console.log('Geometry ignored because of missing parent')
+            return
+          if node.parent and node.parent.loading
+            console.log('Geometry ignored because parent is loading')
+            return
+          if not node.loading
+            console.log('Geometry ignored because node is not loading')
+          node.loading = false
+          node.forEveryChild (child) =>
+            child.loading = false
+            @scene.remove child.mesh if child.mesh
+            @scene.remove child.quad if child.quad
+            # child.removeChildren()
+          node.removeChildren()
+          @scene.remove node.mesh if node.mesh
+          # @scene.remove node.quad if node.quad
+          node.mesh = mesh
+          mesh.position.x
+          @scene.add mesh
+        )
 
 supersecret.Game = class NewGame extends supersecret.BaseGame
   @loaded: false
@@ -613,7 +600,8 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
   preinit: ->
     @chunksize = 4096
     @targetDensity = 32
-    @meshes = new Grid(2, [Infinity, Infinity])
+    @chunks = new Grid(2, [Infinity, Infinity])
+
     console.log("PREINIT now")
 
   postinit: ->
@@ -630,12 +618,12 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       if v == 'true' or v == '1' or v == 'y' or v == 'yes' or v == 't'
         return true
       return false
-      )
+    )
     @watch('quads', (v) =>
       if v
-        @geometree.enableQuadTree()
+        QuadTreeGeometry.enableQuadTree()
       else
-        @geometree.disableQuadTree()
+        QuadTreeGeometry.disableQuadTree()
     )
     @watch('noise', (v) =>
       return if not v
@@ -667,9 +655,7 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
         currentLayer.multiplier = parseFloat(currentNumber)
       layers.push currentLayer
       @geometree.cleanup()
-      enableQuadTree = @geometree.quadsEnabled
       @geometree = new QuadTreeGeometry(@scene, @chunksize)
-      @geometree.quadsEnabled = enableQuadTree
       terrainWorker.call('setNoise', layers, ->)
       terrainWorker.i.maxHeight (v) =>
         @geometree.maxHeight = v
@@ -786,11 +772,31 @@ supersecret.Game = class NewGame extends supersecret.BaseGame
       @lp = @camera.position.y
       console.log(@camera.position.y)
 
-    @geometree.growTree({
-      x: @camera.position.x - @geometree.offset.x
-      y: @camera.position.y
-      z: @camera.position.z - @geometree.offset.y
-    })
+    cx = Math.floor(@camera.position.x / @chunksize)
+    cy = Math.floor(@camera.position.z / @chunksize)
+    for dx in [-1..1]
+      for dy in [-1..1]
+        if not @chunks.exists(cx + dx, cy + dy)
+          chunk = new QuadTreeGeometry(@scene, @chunksize)
+          chunk.offset.x = (cx + dx) * @chunksize
+          chunk.offset.y = (cy + dy) * @chunksize
+          @chunks.set(chunk, cx + dx, cy + dy)
+
+    @chunks.forEachChunk (coords...) =>
+      chunk = @chunks.get(coords...)
+      position = {
+        x: @camera.position.x - chunk.offset.x
+        y: @camera.position.y
+        z: @camera.position.z - chunk.offset.y
+      }
+      if shouldDivideNode(chunk.tree, position)
+        chunk.growTree(position)
+
+    # @geometree.growTree({
+    #   x: @camera.position.x - @geometree.offset.x
+    #   y: @camera.position.y
+    #   z: @camera.position.z - @geometree.offset.y
+    # })
 
     # cx = Math.floor(@camera.position.x / @chunksize)
     # cy = Math.floor(@camera.position.z / @chunksize)
