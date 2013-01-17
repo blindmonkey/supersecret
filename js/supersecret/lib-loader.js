@@ -32,6 +32,11 @@ window.lib.export = function(name, object) {
   window[name] = object;
 };
 
+window.lib.clear = function() {
+  window.lib.cache = {};
+  window.lib.loading = {};
+};
+
 /**
  * Get the loading progress percentage.
  */
@@ -53,7 +58,7 @@ window.lib.load = function() {
   } else {
     window.lib.handle('done', callback);
   }
-  
+
   var callbackForName = function(name) {
     return function() {
       console.log('Loaded ' + name);
@@ -71,7 +76,7 @@ window.lib.load = function() {
       }
     };
   };
-  
+
   window.lib.fire('request', names);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
