@@ -1,5 +1,4 @@
 (function() {
-var alreadyStopped = false;
 
 var DEBUG = {
   expose: function(name, f) {
@@ -10,11 +9,13 @@ var DEBUG = {
       debugger;
   },
   breakpointOnce: function() {
-    if (alreadyStopped) {
-      return;
-    }
-    alreadyStopped = true;
-    debugger;
+    var alreadyStopped = false;
+    return function() {
+      if (!alreadyStopped) {
+        alreadyStopped = true;
+        debugger;
+      }
+    };
   },
   debugObject: {}
 };

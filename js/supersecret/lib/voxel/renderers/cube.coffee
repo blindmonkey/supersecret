@@ -30,6 +30,6 @@ lib.export('CubeRenderer', class CubeRenderer
       faces.push(flipFaces(CubeRenderer.faces.right...)...)
 
     if faces.length
-      return [faces, undefined]
+      return faces #[faces, undefined]
     return null
 )

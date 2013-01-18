@@ -143,34 +143,6 @@ comm = new WorkerComm(self, {
     console.log('test!')
     return a + b
   geometry: generateGeometry
-  geometry2: (size, tilesize) ->
-    console.log('geo')
-    t = new Date().getTime()
-    geo = new THREE.Geometry()
-    # faces = new FaceManager(500)
-    for y in [0..size-1]
-      for x in [0..size-1]
-        # n = noise.noise2D(x, y)
-        n = getNoise(x, y)
-        geo.vertices.push new THREE.Vector3(x * tilesize, n, y * tilesize)
-        if x > 0 and y > 0
-          face1 = new THREE.Face3(getIndex(size, x, y), getIndex(size, x, y - 1), getIndex(size, x - 1, y))
-          face2 = new THREE.Face3(getIndex(size, x, y - 1), getIndex(size, x - 1, y - 1), getIndex(size, x - 1, y))
-          geo.faces.push(face1)
-          geo.faces.push(face2)
-          for face in [face1, face2]
-            for vertexFaceIndex in [0..2]
-              vertexIndex = face[['a', 'b', 'c'][vertexFaceIndex]]
-              vertex = geo.vertices[vertexIndex]
-              if vertex.y < 0
-                color = new THREE.Color(0x0000ff)
-              else
-                color = new THREE.Color(0x00ff00)
-              face.vertexColors[vertexFaceIndex] = color
-
-    comm.console.log("Geometry generation finished in " + (new Date().getTime() - t) + "s")
-    geo.computeFaceNormals()
-    return geo
 })
 comm.ready()
 comm.handleReady(->
@@ -396,7 +368,7 @@ class QuadTreeGeometry
     )
     @quads = []
     @stopped = false
-    @updater = new Updater(1000)
+    @updater = new Updater(5000)
     @maxheight = null
 
   @enableQuadTree: ->
