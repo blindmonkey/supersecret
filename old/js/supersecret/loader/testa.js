@@ -1,4 +1,4 @@
-require('testb-js');
+require('/old/js/supersecret/loader/testc.js');
 
 var add = function(a, b) {
   return a + b;

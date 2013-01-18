@@ -1,0 +1,44 @@
+<html>
+  <head>
+    <title>Three.js Test</title>
+    <script type="text/javascript">
+      window.supersecret = {};
+      window.DEBUG = {
+        expose: function() {}
+      };
+
+      function doWhen(condition, callback) {
+        var func = function() {
+          if (condition()) {
+            callback();
+          } else {
+            setTimeout(func, 100);
+          }
+        };
+        func();
+      };
+    </script>
+    <script type="text/javascript" src="js/coffee-script.js"></script>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/loader.js"></script>
+    <script type="text/javascript">
+      (function() {
+        lib.init(window.location.protocol + '//' + window.location.host, '/js/supersecret/lib/');
+      })()
+    </script>
+  </head>
+  <body>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+    <script>
+      $(function() {
+        doWhen(function() { return !!window.init; },
+          function() { window.init(); });
+      });
+    </script>
+    <div id="container"></div>
+  </body>
+</html>
