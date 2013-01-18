@@ -1,0 +1,14 @@
+<html>
+  <head>
+    <title>Dynamic Loader Test</title>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/supersecret/loader.js"></script>
+    <script>
+      (function() {
+        lib.init(window.location.protocol + '//' + window.location.host, '/js/supersecret/lib/');
+      })()
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
