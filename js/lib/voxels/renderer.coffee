@@ -20,7 +20,7 @@ arraysEqual = (array1, array2) ->
     return false if array1[i] != array2[i]
   return true
 
-exports.VoxelRenderer = class
+exports.VoxelRenderer = class VoxelRenderer
   constructor: (getter, voxelGridSize, scale, materials) ->
     @grid = new Grid(3, voxelGridSize)
     @scale = scale

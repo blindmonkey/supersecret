@@ -22,9 +22,10 @@
     <script type="text/javascript" src="js/jquery.min.js"></script>
     <script type="text/javascript" src="js/loader.js"></script>
     <script type="text/javascript">
-      (function() {
-        lib.init(window.location.protocol + '//' + window.location.host, '/js/supersecret/lib/');
-      })()
+      $(function() {
+        lib.init(window.location.protocol + '//' + window.location.host, '/js/lib/');
+        lib.load('main.js');
+      });
     </script>
   </head>
   <body>
@@ -33,12 +34,6 @@
         margin: 0;
       }
     </style>
-    <script>
-      $(function() {
-        doWhen(function() { return !!window.init; },
-          function() { window.init(); });
-      });
-    </script>
     <div id="container"></div>
   </body>
 </html>

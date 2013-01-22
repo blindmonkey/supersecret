@@ -1,7 +1,7 @@
-require('/old/js/supersecret/loader/testa.js');
-require('/old/js/supersecret/loader/testb.js');
+// require('/old/js/supersecret/loader/testa.js');
+// require('/old/js/supersecret/loader/testb.js');
 
-console.log("This is a test of the require. Add of 1, 2 is " + add(1, 2));
+// console.log("This is a test of the require. Add of 1, 2 is " + add(1, 2));
 
 exports.getQueryParams = function(opt_query) {
   var query = opt_query || window.location.href.split('#')[0].split('?').splice(1).join('?');
