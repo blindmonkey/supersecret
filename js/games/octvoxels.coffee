@@ -1,3 +1,4 @@
+require('core/events')
 require('firstperson')
 require('geometry/facemanager')
 require('geometry/polygons')
@@ -17,8 +18,7 @@ require('workers/comm')
 require('workers/console.js')
 
 
-
-class MeshWorker
+class MeshWorker extends Events
   @deps: [
     # 'js/lib/three/three.min.js'
     'js/coffee-script.js'
@@ -26,7 +26,7 @@ class MeshWorker
     'js/loader.js'
   ]
 
-  code: """
+  @code: """
     hostre = /^(.+:\\/\\/.+?)(\\/.*)$/
     m = baseURL.match(hostre)
     lib.init(m[1], '/js/lib/')
@@ -35,10 +35,10 @@ class MeshWorker
     geometry = {
       id: 0
       geometries: {}
-      start: ->
+      start: (request) ->
         id = geometry.id++
         geometry.geometries[id] = []
-        comm.i.startGeometry(id)
+        comm.i.startGeometry(id, request)
       send: (handle, faces...) ->
         for face in faces
           geometry.geometries[handle].push face
@@ -71,8 +71,10 @@ class MeshWorker
   """
 
   constructor: ->
+    super()
     @worker = webworker.fromCoffee(MeshWorker.deps, MeshWorker.code)
     @worker.onmessage = console.handleConsoleMessages('w1')
+    @requestId = 0
     @geometries = {}
     @callbacks = {}
     @comm = new WorkerComm(@worker, {
@@ -90,6 +92,9 @@ class MeshWorker
     })
     @comm.handleReady =>
       @comm.ready()
+      @fireEvent('ready')
+
+  requestGeometry: ()
 
   ready: ->
     return @comm.isReady
@@ -112,6 +117,7 @@ exports.Game = class NewGame extends BaseGame
     @size = 64
     @generator = new WorldGenerator([16, 16, 16])
     @updater = new Updater(1000)
+    @meshWorker = new MeshWorker()
     # @initGrid()
   postinit: ->
     @person = new FirstPerson(container, @camera)
@@ -139,13 +145,15 @@ exports.Game = class NewGame extends BaseGame
   initGeometry: ->
     @scene.add new THREE.Mesh(new THREE.SphereGeometry(1, 4, 4))
 
-    console.log('Init geometry', @grid.get(0,0,0))
-    geometry = @vrenderer.geometry()
-    geometry.computeFaceNormals()
-    console.log(geometry.vertices.length)
-    @scene.add new THREE.Mesh(geometry, new THREE.MeshNormalMaterial())
+    # console.log('Init geometry', @grid.get(0,0,0))
+    # geometry = @vrenderer.geometry()
+    # geometry.computeFaceNormals()
+    # console.log(geometry.vertices.length)
+    # @scene.add new THREE.Mesh(geometry, new THREE.MeshNormalMaterial())
 
 
   update: (delta) ->
+    if @meshWorker.ready()
+      @updater.update('worker', 'ready and willing')
     @updater.update('update', @camera.position)
     @person.update(delta)
