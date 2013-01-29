@@ -32,7 +32,7 @@ class QuadTree
 
   generateTree_: (offset, size, maxdepth) ->
     tree = {
-      depth = 0
+      depth: 0
       heights: @getCornerHeights(offset, size)
     }
     return tree if maxdepth < 0
