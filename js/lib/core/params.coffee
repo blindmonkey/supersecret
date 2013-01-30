@@ -35,6 +35,7 @@ exports.Params =
 
   transform: (param, transform) ->
     service.transform param, transform
+    service.fireEvent param, service.params[param]
 
   exists: (param) ->
     return param of service.params
