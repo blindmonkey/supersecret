@@ -73,17 +73,61 @@ getNoise = null
 initGenerator = ->
   # Math.seedrandom(seed)
   console.log('Reinitializing noise with ', description)
-  noise = new NoiseGenerator(
-    new SimplexNoise(Math.random), description)
-  noise2 = new NoiseGenerator(
-    new SimplexNoise(Math.random), description)
-  noise3 = new SimplexNoise(Math.random)
-  getNoise = cached((x, y) ->
-    n1 = noise.noise2D(x, y)
-    n2 = noise2.noise2D(x, y)
-    n3 = (noise3.noise2D(x, y) + 1) / 2
-    return (n2 - n1) * n3 + n1
-  )
+  # noise = new NoiseGenerator(
+  #   new SimplexNoise(Math.random), description)
+  # noise2 = new NoiseGenerator(
+  #   new SimplexNoise(Math.random), description)
+  # noise3 = new SimplexNoise(Math.random)
+  # getNoise = cached((x, y) ->
+  #   n1 = noise.noise2D(x, y)
+  #   n2 = noise2.noise2D(x, y)
+  #   n3 = (noise3.noise2D(x, y) + 1) / 2
+  #   return (n2 - n1) * n3 + n1
+  # )
+  biomeGenerator = new NoiseGenerator(
+    new SimplexNoise(Math.random), [{
+      scale:.0001,
+      multiplier:1,
+      transform: (v) -> (v+1)/2
+    }])
+  generators = [
+    [.33, new NoiseGenerator(new SimplexNoise(Math.random), [{
+      scale: .001,
+      multiplier:50
+      }])
+    ]
+    [.66, new NoiseGenerator(new SimplexNoise(Math.random), [{
+      scale: .1,
+      multiplier: 20
+      }])
+    ]
+    [Infinity, new NoiseGenerator(new SimplexNoise(Math.random), [{
+      scale: 10,
+      multiplier: 1
+      }])
+    ]
+  ]
+  getNoise = (x, y) ->
+    return generators[0]
+    biome = biomeGenerator.noise2D(x, y)
+    for genIndex in [0..generators.length-1]
+      [limit, generator] = generators[genIndex]
+      if biome < limit
+        if generators[genIndex+1]
+          v1 = generator.noise2D(x, y)
+          v2 = generators[genIndex+1][1].noise2D(x, y)
+        else
+          v1 = generators[genIndex-1][1].noise2D(x, y)
+          v2 = generator.noise2D(x, y)
+        return (v2 - v1) * biome + v1
+    return biome
+
+
+  noise =
+    getMaxValue: -> 81
+    noise2D: getNoise
+
+
   console.log('Noise initialized')
 
 generateGeometry = (offset, density, size) ->
@@ -141,10 +185,9 @@ comm = new WorkerComm(self, {
     initGenerator()
   setNoise: (newDescription) ->
     description = newDescription
+    initGenerator()
   maxHeight: ->
     return noise.getMaxValue()
-
-    initGenerator()
   test: (a, b) ->
     console.log('test!')
     return a + b
@@ -215,31 +258,21 @@ serializer.teach = (name, serialize, deserialize) ->
 
 identity = (o) -> o
 serializer.teach('RawGeometry', identity, ((o) ->
-  # geo = new THREE.Geometry()
   o.__proto__ = THREE.Geometry.prototype
   for p of o
     if p == 'vertices'
       for v in o.vertices
         v.__proto__ = THREE.Vector3.prototype
-        #geo.vertices.push new THREE.Vector3(v.x, v.y, v.z)
     else if p == 'faces'
       for f in o.faces
         f.__proto__ = THREE.Face3.prototype
-        # geo.faces.push face = new THREE.Face3(f.a, f.b, f.c)
-        # face.normal = new THREE.Vector3(f.normal.x, f.normal.y, f.normal.z)
         f.normal.__proto__ = THREE.Vector3.prototype
         if f.vertexColors.length > 0
           for vertexColorIndex in [0..f.vertexColors.length-1]
-            # color = new THREE.Color(0)
             c = f.vertexColors[vertexColorIndex]
             c.__proto__ = THREE.Color.prototype
-            # color.setRGB(c.r, c.g, c.b)
-            # face.vertexColors[vertexColorIndex] = color
-    # else
-    #   geo[p] = o[p]
-  # return geo)
-  return o)
-)
+  return o
+))
 serializer.teach('Geometry', identity, ((o) ->
   geo = new THREE.Geometry()
   for p of o
