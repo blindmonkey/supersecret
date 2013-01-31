@@ -1,4 +1,10 @@
 terrainWorkerCode = """
+FaceManager = e.FaceManager
+NoiseGenerator = e.NoiseGenerator
+THREE = e.THREE
+WorkerComm = e.WorkerComm
+cached = e.cached
+
 console.log('hello from worker')
 
 getIndex = (size, x, y) ->
@@ -150,15 +156,15 @@ comm.handleReady(->
   )
 """
 terrainWorkerDeps = [
-  'js/three.min.js'
-  'js/seededrandom.js'
-  'js/coffee-script.js'
-  'js/worker-console.js'
-  'js/simplex-noise.js'
-  'cache'
-  'worker-comm'
-  'facemanager'
+  '/js/coffee-script.js'
+  'geometry/facemanager'
   'noisegenerator'
+  'random/seededrandom.js'
+  'simplex.js'
+  'three/three.min.js'
+  'util/cache'
+  'workers/comm'
+  'workers/console.js'
   # 'grid'
   #'worker-console'
 ]
@@ -166,28 +172,31 @@ terrainWorker = null
 
 # now = -> new Date().getTime()
 
-lib.load(
-  'firstperson'
-  'grid'
-  'polygons'
-  'queue'
-  'now'
-  'updater'
-  'worker-comm'
-  'webworkers'
-  ->
-    console.log('libs loaded')
-    createTerrainWorker = ->
-      worker = webworker.fromCoffee(terrainWorkerDeps, terrainWorkerCode)
-      worker.onmessage = console.handleConsoleMessages('w1')
-      worker = new WorkerComm(worker, {});
-      worker.handleReady(->
-        supersecret.Game.loaded = true
-        worker.ready()
-      )
-      return worker
-    terrainWorker = createTerrainWorker()
-)
+require('core/params')
+require('three/three.min.js')
+require('three/base')
+require('firstperson')
+require('util/grid')
+require('geometry/polygons')
+require('util/queue')
+require('time/now')
+require('time/updater')
+require('workers/comm')
+require('workers/console.js')
+require('webworkers')
+
+window.delayLoad = true
+createTerrainWorker = ->
+  console.log('Worker initialized')
+  worker = webworker.fromCoffee(terrainWorkerDeps, terrainWorkerCode)
+  worker.onmessage = console.handleConsoleMessages('w1')
+  worker = new WorkerComm(worker, {});
+  worker.handleReady(->
+    worker.ready()
+    window.delayLoad = false
+  )
+  return worker
+terrainWorker = createTerrainWorker()
 
 serializer = {
   db: {}
@@ -405,7 +414,7 @@ class QuadTreeGeometry
   growTree: (position) ->
     return if @loading > 10
     @updater.update('trees', 'Loading ' + @loading)
-    DEBUG.breakpoint(@shouldBreakpoint)
+    # DEBUG.breakpoint(@shouldBreakpoint)
     @shouldBreakpoint = false
     # console.log('GROWING ', @loading)
 
@@ -592,28 +601,28 @@ exports.Game = class NewGame extends BaseGame
     @person.pitch = Math.PI / 4
     @person.updateCamera()
     @geometree = new QuadTreeGeometry(@scene, @chunksize)
-    @setTransform('speed', parseFloat)
-    @watch('speed', (v) =>
+    Params.transform('speed', parseFloat)
+    Params.watch('speed', (v) =>
       @person.speed = v or 10
     )
-    @setTransform('quads', (v) ->
+    Params.transform('quads', (v) ->
       if v == 'true' or v == '1' or v == 'y' or v == 'yes' or v == 't'
         return true
       return false
     )
-    @watch('quads', (v) =>
+    Params.watch('quads', (v) =>
       if v
         QuadTreeGeometry.enableQuadTree()
       else
         QuadTreeGeometry.disableQuadTree()
     )
-    @setTransform 'divide', parseFloat
-    @watch 'divide', (v) =>
+    Params.transform 'divide', parseFloat
+    Params.watch 'divide', (v) =>
       divideThreshold = v or 1
-    @setTransform 'density', parseInt
-    @watch 'density', (v) =>
+    Params.transform 'density', parseInt
+    Params.watch 'density', (v) =>
       QuadTreeGeometry.density = v or 4
-    @watch('noise', (v) =>
+    Params.watch('noise', (v) =>
       return if not v
       # The format is as follows:
       # +#.#,#.#+#.#,#.#

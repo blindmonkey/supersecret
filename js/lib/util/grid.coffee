@@ -1,4 +1,5 @@
 require('core/events')
+require('util/id')
 
 GridID = 0
 

@@ -1,4 +1,4 @@
-exports.Queue = class
+exports.Queue = class Queue
   constructor: ->
     @head = null
     @tail = null

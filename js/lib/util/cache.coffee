@@ -1,4 +1,4 @@
-require('id')
+require('util/id')
 
 exports.cached = (f) ->
   cache = {}

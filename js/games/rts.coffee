@@ -153,7 +153,7 @@ terrainWorkerDeps = [
   'js/lib/three/three.min.js'
   'js/lib/random/seededrandom.js'
   'js/coffee-script.js'
-  # 'js/workers/console.js'
+  'js/workers/console.js'
   'js/lib/simplex.js'
   'js/lib/util/cache'
   'js/lib/workers/comm'
