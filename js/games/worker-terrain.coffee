@@ -156,7 +156,7 @@ comm.handleReady(->
   )
 """
 terrainWorkerDeps = [
-  '/js/coffee-script.js'
+  '../coffee-script.js'
   'geometry/facemanager'
   'noisegenerator'
   'random/seededrandom.js'
@@ -521,7 +521,7 @@ class QuadTreeGeometry
 
     for leaf in leaves
       continue if @loading > 10 or leaf.loading or leaf.parent is undefined
-      continue if leaf.size < @size / 4096
+      continue if leaf.size < @size / (4096 * 4)
       continue if not shouldDivideNode(leaf, position) and not leaf.force
 
       console.log "Generating #{leaf.offset.x},#{leaf.offset.y}x#{leaf.size} s#{leaf.size}"

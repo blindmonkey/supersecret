@@ -23,7 +23,8 @@
     <script type="text/javascript" src="js/loader.js"></script>
     <script type="text/javascript">
       $(function() {
-        lib.init(window.location.protocol + '//' + window.location.host, '/js/lib/');
+        var host = window.location.href.split('#')[0].split('?')[0].split('/').slice(0,-1).join('/');
+        lib.init(host + '/', 'js/lib/');
         lib.load('main.js');
       });
     </script>
