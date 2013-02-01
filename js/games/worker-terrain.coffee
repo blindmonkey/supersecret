@@ -1,3 +1,5 @@
+
+
 terrainWorkerCode = """
 FaceManager = e.FaceManager
 NoiseGenerator = e.NoiseGenerator
@@ -122,10 +124,17 @@ initGenerator = ->
         return (v2 - v1) * biome + v1
     return biome
 
+  desc = []
+  numgens = Math.random() * 15 + 5
+  for f in [1..numgens]
+    s = Math.random() * 100
+    desc.push {scale: Math.sqrt(s/100)/500, multiplier: 1000 / (s / 100 * 30 + 10)}
+
 
   noise =
     getMaxValue: -> 81
-    noise2D: getNoise
+    noise2D: (x, y) ->
+  noise = new NoiseGenerator(new SimplexNoise(), desc)
 
 
   console.log('Noise initialized')
