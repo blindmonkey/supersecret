@@ -27,6 +27,12 @@ exports.Set = class
     for item of @items
       f(@items[item])
 
+  forEachPair: (f) ->
+    keys = Object.keys(@items)
+    for i in [0..keys.length-2]
+      for j in [i+1..keys.length-1]
+        f(@items[keys[i]], @items[keys[j]])
+
   forEachPop: (f, untilFunction) ->
     while @length > 0
       f(@pop())
@@ -86,6 +92,11 @@ exports.Set = class
     other.forEach((item) ->
       newSet.add(item))
     return newSet
+
+  unionThis: (other) ->
+    other.forEach((item) =>
+      @add(item))
+    return @
 
   intersection: (other) ->
     newSet = new Set()

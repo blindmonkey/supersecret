@@ -33,8 +33,6 @@ exports.Renderer = class
     @stopped = false
     frameHistory = []
 
-    lastTime = new Date().getTime()
-
     maybeUpdate = ((frequency) ->
       frequency = frequency or 10000
 
@@ -46,6 +44,7 @@ exports.Renderer = class
           console.log('Render loop: ' + 1000 / average(frameHistory) + ' frames per second')
           lastUpdated = new Date().getTime())(5000)
 
+    lastTime = new Date().getTime()
     f = ->
       now = new Date().getTime()
       tick(now - lastTime)

@@ -4,6 +4,12 @@ exports.Queue = class Queue
     @tail = null
     @length = 0
 
+  forEach: (f) ->
+    p = @head
+    while p
+      f(p.first)
+      p = p.rest
+
   toString: ->
     return JSON.stringify(@head)
 
@@ -20,6 +26,15 @@ exports.Queue = class Queue
       @tail.rest = newtailrest
       @tail = @tail.rest
     @length++
+
+  pushFront: (item) ->
+    if @length > 0
+      @head =
+        first: item
+        rest: @head
+      @length++
+    else
+      @push item
 
   pop: ->
     item = @head.first

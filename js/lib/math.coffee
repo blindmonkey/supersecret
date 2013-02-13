@@ -50,6 +50,12 @@ exports.math = {
       sum += diff * diff
     return Math.sqrt(sum)
 
+  average: (l) ->
+    s = 0
+    for i in l
+      s += i
+    return s / l.length
+
   random: random
 
   patterns:
