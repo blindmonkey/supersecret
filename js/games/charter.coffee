@@ -2,6 +2,15 @@ require('two/base')
 require('producers/producers')
 require('util/set')
 
+class Data
+  constructor: ->
+    @dim = undefined
+    @size = 0
+
+  add: (row) ->
+
+
+
 class Charter
   constructor: (definitions, transforms) ->
     @graph = new producers.Graph()
@@ -27,6 +36,9 @@ class Charter
         throw "Unknown definition type for " + value
     return deps
 
+  render: (outputTypes, inputData, dataMap, dataRelationships) ->
+
+
 
 
 
@@ -51,15 +63,37 @@ exports.Game = class CharterGame extends BaseGame
       y: 4.5
     }]
 
-    new producers.Producer 'data', [], ->
-      return data
+    definitions =
+      Circle:
+        x: 'number'
+        y: 'number'
+        size: 'number'
 
-    new producers.Producer 'Circle', ['data'], (data) ->
-      return for item in data
-        oitem =
-          x: item.x
-          y: item.y
-          size: item.size or 3
+    transforms =
+      Circle:
+        x: 'Point.x'
+        y: 'Point.y'
+        size: 5
+
+    map =
+      Point:
+        x: 'data1.x'
+        y: 'data2.y'
+
+    relationships =
+      'data1.id': 'data2.id'
+
+    data =
+      data1: data1
+      data2: data2
+
+    charter = new Charter(definitions, transforms)
+    # Charter.render(
+    #   Array.<string>   A list of things to get
+    #
+    # )
+    charter.render ['Circle'], data, map, relationships
+
 
 
   update: (delta) ->
