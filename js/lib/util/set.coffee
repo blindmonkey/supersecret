@@ -53,11 +53,12 @@ exports.Set = class
     worker.run()
     return worker
 
-  add: (item) ->
-    id = generateId(item)
-    if id not of @items
-      @items[id] = JSON.parse(JSON.stringify(item))
-      @length++
+  add: (items...) ->
+    for item in items
+      id = generateId(item)
+      if id not of @items
+        @items[id] = JSON.parse(JSON.stringify(item))
+        @length++
 
   peek: ->
     if @length == 0

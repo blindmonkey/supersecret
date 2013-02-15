@@ -7,6 +7,9 @@ exports.Map = class
     @dataIndex = {}
     @size = 0
 
+  keys: ->
+    return key for key of @dataIndex
+
   contains: (key) ->
     id = generateId(key)
     return id of @data
