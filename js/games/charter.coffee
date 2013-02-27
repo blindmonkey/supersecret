@@ -4,7 +4,8 @@ require('util/set')
 require('util/map')
 
 charter = {}
-class charter.Data
+###
+charter.Data = class Data
   constructor: (data) ->
     @data = []
     @index = {}
@@ -215,19 +216,27 @@ class charter.Charter
                 if argindex is dataIndex then row else arg
               output.add transform.transform(newargs...)
           return output
+###
 
 charter.Type =
   NUMBER: 'number'
   STRING: 'string'
+  OBJECT: 'object'
 
 # A definition is an object with a set of properties that have certain types
 # and other constraints.
 # Nested properties are not allowed.
 # Among the primitive types,
-class charter.Definition
-  @definitions: {}
-  @register: (name, definition) ->
-    charter.Definition.definitions[name] = definition
+charter.Definition = class Definition
+  class Description
+    constructor: (type) ->
+      @type = type
+
+    getType: ->
+      return @type
+
+    setType: (type) ->
+      @type = type
 
   constructor: ->
     @properties = {}
@@ -235,26 +244,232 @@ class charter.Definition
       primary: Set()
       foreign: Set()
 
-  isPrimitiveType: (type) ->
+  @isPrimitiveType: (type) ->
     for t, s of charter.Type
       return true if type is s
     return false
 
-  isKnownType: (type) ->
-    return @isPrimitiveType(type) or type of charter.Definition.definitions
+  @isValuePrimitive: (value) ->
+    return typeof value is 'number' or typeof value is 'string'
 
-  setType: (property, type) ->
+  @getValueType: (value) ->
+    if typeof value is 'string'
+      return charter.Type.STRING
+    else if typeof value is 'number'
+      return charter.Type.NUMBER
+    else
+      return charter.Type.OBJECT
 
-charter.Definition.setPrimaryKey
-charter.Definition.check
+  isCorrectType: (property, value) ->
+    propertyType = @properties[property].getType()
+    propertyIsPrimitive = Definition.isPrimitiveType(propertyType)
+    return (typeof value is 'object' and not propertyIsPrimitive) or \
+        (propertyIsPrimitive and Definition.isValuePrimitive(value))
+
+  propertyExists: (name) ->
+    return name of @properties
+
+  setPropertyType: (property, type) ->
+    @properties[property] = new Description() if not @propertyExists(property)
+    @properties[property].setType(type)
+    return @
+
+  getPropertyType: (property) ->
+    return @properties[property]
+
+  setPrimaryKey: ->
+  check: ->
+
+charter.Data = class Data
+  constructor: (data) ->
+    @data = []
+    @index = {}
+    @spec = new charter.Definition()
+    if data?
+      for item in data
+        @add(item)
+
+  setSpec: (spec) ->
+    @spec = spec
+    return @
+
+  isValid: (item) ->
+    return @checkAgainstSpec(item).invalidType is 0
+
+  checkAgainstSpec: (item) ->
+    report =
+      invalidType: 0
+      extraProperties: 0
+    for property, value of item
+      if not @spec.propertyExists(property)
+        report.extraProperties++
+      else if not @spec.isCorrectType(property, value)
+        report.invalidType++
+    return report
+
+  add: (item) ->
+    throw "Invalid data for #{item}" if not @isValid(item)
+    for prop, value of item
+      if prop not of @index
+        @index[prop] = new Map()
+      if prop not of @spec
+        if Definition.isValuePrimitive(value)
+          @spec.setPropertyType(prop, Definition.getValueType(value))
+        else
+          throw "Invalid type for property: #{value}"
+      valueIndices = @index[prop].get(value) or []
+      valueIndices.push(@data.length)
+      @index[prop].put(value, valueIndices)
+    @data.push item
+    return @
+
+  getValues: (property) ->
+    values = @index[property]
+    return undefined if not values
+    return values.keys()
+
+  getIndices: (property, value) ->
+    return @index[property].get(value)
+
+  getRow: (index) ->
+    return @data[index]
+
+  getSize: ->
+    return @data.length
 
 # A transform is a function with a set of dependencies that outputs a certain
 # definition.
-charter.Transform
+charter.Transform = class Transform
+  constructor: (outputType, dependencies) ->
+    @outputType = outputType
+    @dependencies = dependencies
+    @transform = undefined
+
+  setTransform: (transform) ->
+    @transform = transform
+    return @
+
+  apply: (args...) ->
+    dependencies = {}
+    for dependency, index in dependencies
+      dependencies[dependency] = args[index]
+
+    return @transform dependencies
 
 
+charter.Charter = class Charter
+  constructor: (renderer) ->
+    @graph = new producers.Graph()
+    @bindings = {}
+    @transforms = {}
+    @definitions = {}
+    @renderer = renderer
 
-Charter = charter.Charter
+  addBinding: (name, binding) ->
+    @bindings[name] = binding
+
+  addDefinition: (name, definition) ->
+    @definitions[name] = definition
+
+  addTransform: (transform) ->
+    @transforms[transform.outputType] = [] if transform.outputType not of @transforms
+    @transforms[transform.outputType].push transform
+
+  render: (data) ->
+    definitions = {}
+    for definition of @definitions
+      definitions[definition] = @definitions[definition]
+
+    bindings = {}
+    for bindingName, binding of @bindings
+      bindings[bindingName] = binding
+
+    for name, table of data
+      if table not instanceof charter.Data
+        if table instanceof Array
+          if typeof table[0] is 'object'
+            source = table
+            table = new charter.Data(data)
+          else
+            throw "You can't have an array of non objects"
+      bindings[name] = table
+
+    supportedTypes = new Set(@renderer.getSupported())
+    targetTypes = []
+    for definition of definitions
+      if supportedTypes.contains(definition)
+        targetTypes.push definition
+
+    transforms = @transforms
+    # TODO: Add transforms to the render method
+
+    addTransformToGraph = (outputType, allTransformDependencies) =>
+      @graph.add outputType, allTransformDependencies, (args...) ->
+        dependencies = {}
+        for dependency, index in allTransformDependencies
+          dependencies[dependency] = args[index]
+
+        dataDependencies = new Set()
+        for dependencyName, dependency of dependencies
+          if dependency instanceof charter.Data
+            dataDependencies.add dependencyName
+
+        # If there are no data dependencies, this object will be a
+        # singleton.
+        if dataDependencies.length is 0
+          output = {}
+        else
+          output = []
+
+        if dataDependencies.length > 1
+          throw "Error"
+
+        calcTransformArgs = (transform) ->
+          return (dependencies[dependency] for dependency in transform.dependencies)
+
+        debugger
+        if dataDependencies.length is 0
+          for transform in transforms[outputType]
+            transformArgs = calcTransformArgs(transforms)
+            transformOutput = transform.transform(transformArgs...)
+            (output[p] = v for p, v of transformOutput)
+        else
+          dataDependencyName = dataDependencies.toArray()[0]
+          dataDependency = dependencies[dataDependencyName]
+          for dataIndex in [0..dataDependency.getSize() - 1]
+            dataObject = dataDependency.getRow(dataIndex)
+            outputObject = {}
+            for transform in transforms[outputType]
+              transformArgs = calcTransformArgs(transform)
+              dataDependencyArgIndex = transformArgs.indexOf(dataDependency)
+              if dataDependencyArgIndex >= 0
+                transformArgs[dataDependencyArgIndex] = dataObject
+              transformOutput = transform.transform(outputObject, transformArgs...)
+              (outputObject[p] = v for p, v of transformOutput)
+            output.push outputObject
+
+        return new charter.Data(output) if output instanceof Array
+        return output
+
+    for outputType of transforms
+      allTransformDependencies = new Set()
+      for transform in transforms[outputType]
+        for dependency in transform.dependencies
+          allTransformDependencies.add dependency
+      addTransformToGraph outputType, allTransformDependencies.toArray()
+
+    for bindingName, binding of bindings
+      @graph.bind bindingName, binding
+
+    for outputType in targetTypes
+      graphOutput = @graph.run outputType
+      if graphOutput instanceof charter.Data
+        for i in [0..graphOutput.getSize() - 1]
+          @renderer.render outputType, graphOutput.getRow(i)
+      else if graphOutput instanceof Array
+        @renderer.render outputType, item for item in graphOutput
+      else
+        @renderer.render outputType, graphOutput
 
 exports.Game = class CharterGame extends BaseGame
   postinit: ->
@@ -300,24 +515,60 @@ exports.Game = class CharterGame extends BaseGame
       data1: data1
       data2: data2
 
-    data =
-      data1: [{
-        x: 3
-        y: 4
-      }, {
-        x: 4
-        y: 4.5
-      }]
+    debugger
 
-    @charter = new Charter(definitions, transforms)
-    # Charter.render(
-    #   Array.<string>   A list of things to get
-    #
-    # )
-    @charter.render ['Circle'], data, map, relationships
+    data =
+      data1: new charter.Data().setSpec(new Definition()
+        .setPropertyType('x', charter.Type.NUMBER)
+        .setPropertyType('y', charter.Type.NUMBER)).add({
+          x: 3
+          y: 4
+        }).add({
+          x: 4
+          y: 4.5
+        })
+
+    @renderQueue = []
+    @charter = new Charter({
+      getSupported: -> ['Circle']
+      render: (type, object) =>
+        @renderQueue.push [type, object]
+    })
+
+    @charter.addDefinition 'Point', new Definition()
+        .setPropertyType('x', charter.Type.NUMBER)
+        .setPropertyType('y', charter.Type.NUMBER)
+
+    @charter.addDefinition 'Circle', new Definition()
+        .setPropertyType('x', charter.Type.NUMBER)
+        .setPropertyType('y', charter.Type.NUMBER)
+        .setPropertyType('radius', charter.Type.NUMBER)
+        .setPropertyType('color', charter.Type.STRING)
+
+    # @charter.
+
+    @charter.addDefinition('Axis', new Definition())
+    @charter.addTransform new Transform('Circle', ['Point']).setTransform((myself, point) ->
+      return {
+        x: point.x
+        y: point.y
+        size: 5
+      }
+    )
+    @charter.addTransform new Transform('Point', ['data1']).setTransform((myself, data1) ->
+      return {
+        x: data1.x
+        y: data1.y
+      }
+    )
+    @charter.render data
 
 
 
   update: (delta) ->
     @context.fillStyle = '#000'
     @context.fillRect(0,0,@context.canvas.width, @context.canvas.height)
+    for [renderType, renderObject] in @renderQueue
+      @context.fillStyle = '#0f0'
+      @context.fillRect(renderObject.x, renderObject.y, renderObject.size, renderObject.size)
+

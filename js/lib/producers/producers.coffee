@@ -12,7 +12,8 @@ class ProducerGraph
 
   add: (name, deps, func) ->
     throw "Node #{name} already exists" if name of @nodes
-    @graph.add name
+    @graph.add name if not @graph.exists name
+
     for dep in deps
       @graph.link name, dep
     @nodes[name] =
