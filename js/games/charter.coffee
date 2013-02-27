@@ -178,41 +178,79 @@ class charter.Charter
       definitions[name] = if definition instanceof charter.Spec then\
           definition else new charter.Spec(definition)
     addTransform = (name, transform) ->
-      allTransforms = transforms[name] or []
+      if name not of transforms
+        transforms[name] = []
       # If the transform is a string or an array, it's a dependency
-      transform = new Transform(definitions, transform)
-      allTransforms.push transform
-
-      transforms[name] = allTransforms
-
-
-      graph.add name, transform.dependencies, (args...) ->
-        dataIndices = []
-        for arg, index in args
-          dataIndices.push(index) if arg instanceof charter.Data
-        if dataIndices.length > 1
-          throw "Things can only have one non-singular dependency for now."
-        if dataIndices.length is 0
-          return transform.transform(args...)
-
-        output = new charter.Data()
-        for dataIndex in dataIndices
-          data = args[dataIndex]
-          for row, index in data.data
-            newargs = for arg, argindex in args
-              if argindex is dataIndex then row else arg
-            output.add transform.transform(newargs...)
-        return output
+      transforms[name].push new Transform(definitions, transform)
 
     addDefinition(name, definition) for name, definition of @definitions
     addDefinition(name, charterData.spec) for name, charterData of data
 
     addTransform(name, transform) for name, transform of @transforms
 
+    for name, transformList of transforms
+      do (name, transformList) ->
+        dependencies = new Set()
+        for transform in transformList
+          dependencies.unionThis new Set(transform.dependencies)
+        dependencies = dependencies.toArray()
+        graph.add name, dependencies, (args...) ->
+          depObj = {}
+          dataIndices = []
+          for arg, index in args
+            dataIndices.push(index) if arg instanceof charter.Data
+            depObj[dependencies[index].path[0]]
+          if dataIndices.length > 1
+            throw "Things can only have one non-singular dependency for now."
+          if dataIndices.length is 0
+            return transform.transform(args...)
 
 
 
+          output = new charter.Data()
+          for dataIndex in dataIndices
+            data = args[dataIndex]
+            for row, index in data.data
+              newargs = for arg, argindex in args
+                if argindex is dataIndex then row else arg
+              output.add transform.transform(newargs...)
+          return output
 
+charter.Type =
+  NUMBER: 'number'
+  STRING: 'string'
+
+# A definition is an object with a set of properties that have certain types
+# and other constraints.
+# Nested properties are not allowed.
+# Among the primitive types,
+class charter.Definition
+  @definitions: {}
+  @register: (name, definition) ->
+    charter.Definition.definitions[name] = definition
+
+  constructor: ->
+    @properties = {}
+    @keys =
+      primary: Set()
+      foreign: Set()
+
+  isPrimitiveType: (type) ->
+    for t, s of charter.Type
+      return true if type is s
+    return false
+
+  isKnownType: (type) ->
+    return @isPrimitiveType(type) or type of charter.Definition.definitions
+
+  setType: (property, type) ->
+
+charter.Definition.setPrimaryKey
+charter.Definition.check
+
+# A transform is a function with a set of dependencies that outputs a certain
+# definition.
+charter.Transform
 
 
 
